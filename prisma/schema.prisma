@@ -1,0 +1,696 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// HASH AGENT — STANDALONE PRISMA SCHEMA
+// Complete schema with auth models + all Hash Agent domain models.
+// This app shares the same Supabase PostgreSQL database as TerpAgent,
+// but generates its own Prisma client independently.
+// Hash Agent tables use ha_* prefix via @@map for namespace isolation.
+// ═══════════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SHARED AUTH MODELS (NextAuth 5 + @auth/prisma-adapter)
+// These tables are shared with TerpAgent — same DB, same tables.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model User {
+  id             String    @id @default(uuid())
+  name           String?
+  email          String    @unique
+  emailVerified  DateTime? @map("email_verified")
+  image          String?
+  hashedPassword String?   @map("hashed_password")
+  lastLoginAt    DateTime? @map("last_login_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  accounts    Account[]
+  sessions    Session[]
+  memberships OrgMember[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ORGANIZATION (shared with TerpAgent)
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  GROWER // Displayed as "Processor" in Hash Agent UI
+  VIEWER
+}
+
+enum OrgPlan {
+  HOME
+  PRO
+  COMMERCIAL
+  ENTERPRISE
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  plan      OrgPlan  @default(HOME)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  members              OrgMember[]
+  // Hash Agent relations
+  hashBatches          HashBatch[]
+  rosinBatches         RosinBatch[]
+  pressedBatches       PressedBatch[]
+  biomassLots          BiomassLot[]
+  freezeDryers         FreezeDryer[]
+  waterFiltrationSystems WaterFiltrationSystem[]
+  cleaningLogs         HaCleaningLog[]
+  maintenanceLogs      HaEquipmentMaintenanceLog[]
+  alerts               HaAlert[]
+  aiSessions           HaAiSession[]
+
+  @@map("organizations")
+}
+
+model OrgMember {
+  id     String  @id @default(uuid())
+  orgId  String  @map("org_id")
+  userId String  @map("user_id")
+  role   OrgRole @default(VIEWER)
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@map("org_members")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HASH AGENT ENUMS
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum MaterialState {
+  DRIED
+  FRESH_FROZEN
+}
+
+enum MaterialGrade {
+  SMALLS
+  BUDS
+  TRIM
+  WHOLE_PLANT
+  LARF
+}
+
+enum QualityTier {
+  TIER_1
+  TIER_2
+  TIER_3
+}
+
+enum HashBatchStatus {
+  WASHING
+  DRYING
+  COMPLETE
+  ALLOCATED
+  ARCHIVED
+}
+
+enum RosinProductType {
+  FULL_PRESS
+  BADDER
+  VAPE
+  LIVE_ROSIN
+  COLD_CURE
+}
+
+enum RosinBatchStatus {
+  PRESSING
+  POST_PROCESSING
+  DECARB
+  COMPLETE
+  ARCHIVED
+}
+
+enum PressedBatchStatus {
+  PRESSING
+  COMPLETE
+  ARCHIVED
+}
+
+enum FreezeDryerPhase {
+  IDLE
+  FREEZING
+  PRIMARY_DRYING
+  SECONDARY_DRYING
+  COMPLETE
+  ERROR
+}
+
+enum FreezeDryerConnectionType {
+  MQTT_WIFI
+  RASPBERRY_PI_BRIDGE
+}
+
+enum HaAlertCategory {
+  ERROR
+  OFFLINE
+  BATCH_COMPLETE
+  VACUUM_HIGH
+  TEMP_SPIKE
+  FILTER_DUE
+  MAINTENANCE_DUE
+}
+
+enum HaAlertSeverity {
+  info
+  warning
+  critical
+}
+
+enum HaAlertStatus {
+  ACTIVE
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum CleaningStatus {
+  CLEAN
+  CLOGGED
+  REPLACED
+}
+
+enum FilterType {
+  SEDIMENT
+  CARBON
+  PRE_FILTER
+}
+
+enum HaMaintenanceCategory {
+  FREEZE_DRYER
+  WATER_FILTRATION
+  RO_SYSTEM
+  PRESS
+  WASH_TANK
+  GENERAL
+}
+
+enum HaMaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETE
+  OVERDUE
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HASH AGENT DOMAIN MODELS
+// All models use ha_* table prefix via @@map for namespace isolation
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── Bubble Hash Batch ───────────────────────────────────────────────────
+
+model HashBatch {
+  id        String          @id @default(uuid())
+  orgId     String          @map("org_id")
+  status    HashBatchStatus @default(WASHING)
+
+  // Starting material
+  strain            String
+  batchNumber       String            @map("batch_number")
+  washDate          DateTime          @map("wash_date")
+  materialState     MaterialState     @map("material_state")
+  materialGrade     MaterialGrade     @map("material_grade")
+  farmSource        String?           @map("farm_source")
+  metrcSourceUid    String?           @map("metrc_source_uid")
+  metrcProductUid   String?           @map("metrc_product_uid")
+  licenseKey        String?           @map("license_key")
+  cleaningLogRef    String?           @map("cleaning_log_ref")
+
+  // Weights
+  rawMaterialWeightG  Float?  @map("raw_material_weight_g")
+  rawMaterialWeightLb Float?  @map("raw_material_weight_lb")
+  wetWasteWeightG     Float?  @map("wet_waste_weight_g")
+  expectedYieldPct    Float?  @map("expected_yield_pct")
+
+  // Equipment
+  equipmentUsed Json? @map("equipment_used")
+
+  // Drying
+  freezeDryerId String?  @map("freeze_dryer_id")
+  dryingDate    DateTime? @map("drying_date")
+  shelfLimitF   Float?   @map("shelf_limit_f")
+  freezeTimeHrs Float?   @map("freeze_time_hrs")
+  dryingTimeHrs Float?   @map("drying_time_hrs")
+
+  // Micron yields (grams)
+  yield160u Float? @default(0) @map("yield_160u")
+  yield120u Float? @default(0) @map("yield_120u")
+  yield90u  Float? @default(0) @map("yield_90u")
+  yield73u  Float? @default(0) @map("yield_73u")
+  yield45u  Float? @default(0) @map("yield_45u")
+  yield25u  Float? @default(0) @map("yield_25u")
+
+  // Calculated totals
+  totalYieldG Float?      @map("total_yield_g")
+  yieldPct    Float?      @map("yield_pct")
+  qualityTier QualityTier? @map("quality_tier")
+
+  // Product info
+  productName       String?   @map("product_name")
+  manufacturingDate DateTime? @map("manufacturing_date")
+
+  // Allocation (grams)
+  allocQa         Float? @default(0) @map("alloc_qa")
+  allocPackaged   Float? @default(0) @map("alloc_packaged")
+  allocPressed    Float? @default(0) @map("alloc_pressed")
+  allocPreRoll    Float? @default(0) @map("alloc_pre_roll")
+  allocWhiteLabel Float? @default(0) @map("alloc_white_label")
+  allocRosin      Float? @default(0) @map("alloc_rosin")
+  allocLossG      Float? @default(0) @map("alloc_loss_g")
+  allocationNotes String? @map("allocation_notes")
+
+  // Sign-off
+  processedBy String? @map("processed_by")
+  verifiedBy  String? @map("verified_by")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  org            Organization      @relation(fields: [orgId], references: [id])
+  freezeDryer    FreezeDryer?      @relation(fields: [freezeDryerId], references: [id])
+  micronAllocations MicronAllocation[]
+  rosinBatches   RosinBatch[]
+  pressedBatches PressedBatch[]
+
+  @@map("ha_hash_batches")
+}
+
+// ─── Micron Allocation ───────────────────────────────────────────────────
+
+model MicronAllocation {
+  id            String @id @default(uuid())
+  hashBatchId   String @map("hash_batch_id")
+  micronGrade   String @map("micron_grade") // e.g. "73u", "90u"
+  weightG       Float  @map("weight_g")
+  destination   String // e.g. "rosin", "packaged", "qa"
+  notes         String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  hashBatch HashBatch @relation(fields: [hashBatchId], references: [id], onDelete: Cascade)
+
+  @@map("ha_micron_allocations")
+}
+
+// ─── Rosin Batch ─────────────────────────────────────────────────────────
+
+model RosinBatch {
+  id        String           @id @default(uuid())
+  orgId     String           @map("org_id")
+  status    RosinBatchStatus @default(PRESSING)
+
+  batchNumber       String  @map("batch_number")
+  sourceHashBatchId String  @map("source_hash_batch_id")
+  strain            String
+
+  // Micron weights used
+  micron120uWeightG Float? @map("micron_120u_weight_g")
+  micron90uWeightG  Float? @map("micron_90u_weight_g")
+  micron73uWeightG  Float? @map("micron_73u_weight_g")
+  micron45uWeightG  Float? @map("micron_45u_weight_g")
+  totalHashWeightG  Float? @map("total_hash_weight_g")
+
+  // Press setup
+  pressId       String?        @map("press_id")
+  productType   RosinProductType @default(FULL_PRESS) @map("product_type")
+  equipmentUsed Json?          @map("equipment_used")
+  productName   String?        @map("product_name")
+  processDate   DateTime       @map("process_date")
+
+  // Yields
+  rosinYieldWeightG Float? @map("rosin_yield_weight_g")
+  rosinYieldPct     Float? @map("rosin_yield_pct")
+  hashToRosinDiffG  Float? @map("hash_to_rosin_diff_g")
+  consistency       String?
+
+  // Decarb
+  decarb        Boolean @default(false)
+  decarbWeightG Float?  @map("decarb_weight_g")
+  decarbLossG   Float?  @map("decarb_loss_g")
+
+  // Chip & bag
+  rosinChipUid       String? @map("rosin_chip_uid")
+  rosinChipEstimateG Float?  @map("rosin_chip_estimate_g")
+  bagWeightG         Float?  @map("bag_weight_g")
+
+  // METRC
+  rosinProductUid     String? @map("rosin_product_uid")
+  metrcBatchNumber    String? @map("metrc_batch_number")
+  companyProcessedFor String? @map("company_processed_for")
+
+  // Sign-off
+  rosinProcessedBy String? @map("rosin_processed_by")
+  decarbProcessedBy String? @map("decarb_processed_by")
+  qcVerifiedBy     String? @map("qc_verified_by")
+  cleaningLogRef   String? @map("cleaning_log_ref")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  org             Organization @relation(fields: [orgId], references: [id])
+  sourceHashBatch HashBatch    @relation(fields: [sourceHashBatchId], references: [id])
+
+  @@map("ha_rosin_batches")
+}
+
+// ─── Pressed Hash Batch ──────────────────────────────────────────────────
+
+model PressedBatch {
+  id        String             @id @default(uuid())
+  orgId     String             @map("org_id")
+  status    PressedBatchStatus @default(PRESSING)
+
+  sourceHashBatchId String  @map("source_hash_batch_id")
+  strain            String?
+  batchNumber       String  @map("batch_number")
+  pressDate         DateTime @map("press_date")
+  micronsUsed       String? @map("microns_used")
+  inputWeightG      Float   @map("input_weight_g")
+  finalWeightG      Float?  @map("final_weight_g")
+  processingLossG   Float?  @map("processing_loss_g")
+  processingLossPct Float?  @map("processing_loss_pct")
+  notes             String?
+  metrcUid          String? @map("metrc_uid")
+
+  processedBy String? @map("processed_by")
+  verifiedBy  String? @map("verified_by")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  org             Organization @relation(fields: [orgId], references: [id])
+  sourceHashBatch HashBatch    @relation(fields: [sourceHashBatchId], references: [id])
+
+  @@map("ha_pressed_batches")
+}
+
+// ─── Biomass Lot (incoming raw material) ─────────────────────────────────
+
+model BiomassLot {
+  id        String @id @default(uuid())
+  orgId     String @map("org_id")
+
+  strain        String
+  metrcUid      String? @map("metrc_uid")
+  farmSource    String? @map("farm_source")
+  materialState MaterialState @map("material_state")
+  materialGrade MaterialGrade @map("material_grade")
+  weightLb      Float?  @map("weight_lb")
+  weightG       Float?  @map("weight_g")
+  receivedDate  DateTime @map("received_date")
+  notes         String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  org Organization @relation(fields: [orgId], references: [id])
+
+  @@map("ha_biomass_lots")
+}
+
+// ─── Freeze Dryer ────────────────────────────────────────────────────────
+
+model FreezeDryer {
+  id        String @id @default(uuid())
+  orgId     String @map("org_id")
+
+  name           String
+  callsign       String?
+  model          String?
+  serial         String? @map("serial_number")
+  pumpModel      String? @map("pump_model")
+  connectionType FreezeDryerConnectionType? @map("connection_type")
+
+  // Live state (updated by telemetry)
+  isOnline         Boolean          @default(false) @map("is_online")
+  currentPhase     FreezeDryerPhase @default(IDLE) @map("current_phase")
+  currentTempF     Float?           @map("current_temp_f")
+  currentPressureMt Float?          @map("current_pressure_mt")
+  batchProgress    Float?           @map("batch_progress")
+  batchStartedAt   DateTime?        @map("batch_started_at")
+  lastSeenAt       DateTime?        @map("last_seen_at")
+
+  // Maintenance
+  nextMaintenanceDate DateTime? @map("next_maintenance_date")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  org       Organization          @relation(fields: [orgId], references: [id])
+  telemetry FreezeDryerTelemetry[]
+  alerts    HaAlert[]
+  batches   HashBatch[]
+
+  @@map("ha_freeze_dryers")
+}
+
+// ─── Freeze Dryer Telemetry ──────────────────────────────────────────────
+
+model FreezeDryerTelemetry {
+  id            String @id @default(uuid())
+  freezeDryerId String @map("freeze_dryer_id")
+
+  timestamp      DateTime         @default(now())
+  phase          FreezeDryerPhase
+  temperatureF   Float?           @map("temperature_f")
+  pressureMt     Float?           @map("pressure_mt")
+  progress       Float?           @map("progress")
+  condenserTempF Float?           @map("condenser_temp_f")
+  trayTempZoneA  Float?           @map("tray_temp_zone_a")
+  trayTempZoneB  Float?           @map("tray_temp_zone_b")
+  trayTempZoneC  Float?           @map("tray_temp_zone_c")
+  errorCode      String?          @map("error_code")
+
+  freezeDryer FreezeDryer @relation(fields: [freezeDryerId], references: [id], onDelete: Cascade)
+
+  @@index([freezeDryerId, timestamp])
+  @@map("ha_freeze_dryer_telemetry")
+}
+
+// ─── Water Filtration System ─────────────────────────────────────────────
+
+model WaterFiltrationSystem {
+  id        String @id @default(uuid())
+  orgId     String @map("org_id")
+
+  name  String
+  model String?
+
+  // Filter dates (for replacement tracking)
+  sedimentFilterDate DateTime? @map("sediment_filter_date")
+  carbonFilterDate   DateTime? @map("carbon_filter_date")
+  preFilterDate      DateTime? @map("pre_filter_date")
+
+  // Maintenance
+  nextMaintenanceDate DateTime? @map("next_maintenance_date")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  org        Organization    @relation(fields: [orgId], references: [id])
+  filterLogs FilterStatusLog[]
+
+  @@map("ha_water_filtration_systems")
+}
+
+// ─── Filter Status Log ───────────────────────────────────────────────────
+
+model FilterStatusLog {
+  id                    String @id @default(uuid())
+  waterFiltrationSystemId String @map("water_filtration_system_id")
+
+  filterType FilterType    @map("filter_type")
+  status     CleaningStatus
+  checkedAt  DateTime      @default(now()) @map("checked_at")
+  checkedBy  String?       @map("checked_by")
+  notes      String?
+
+  waterFiltrationSystem WaterFiltrationSystem @relation(fields: [waterFiltrationSystemId], references: [id], onDelete: Cascade)
+
+  @@map("ha_filter_status_logs")
+}
+
+// ─── Cleaning Log ────────────────────────────────────────────────────────
+
+model HaCleaningLog {
+  id        String @id @default(uuid())
+  orgId     String @map("org_id")
+
+  logNumber String   @map("log_number")
+  weekOf    DateTime @map("week_of")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  org     Organization     @relation(fields: [orgId], references: [id])
+  entries HaCleaningEntry[]
+
+  @@map("ha_cleaning_logs")
+}
+
+model HaCleaningEntry {
+  id             String @id @default(uuid())
+  cleaningLogId  String @map("cleaning_log_id")
+
+  dayOfWeek     Int      @map("day_of_week") // 0=Sun, 1=Mon, ..., 6=Sat
+  date          DateTime
+  equipmentName String   @map("equipment_name")
+  cleaned       Boolean  @default(false)
+  cleanedBy     String?  @map("cleaned_by")
+  verifiedBy    String?  @map("verified_by")
+  notes         String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  cleaningLog HaCleaningLog @relation(fields: [cleaningLogId], references: [id], onDelete: Cascade)
+
+  @@map("ha_cleaning_entries")
+}
+
+// ─── Equipment Maintenance Log ───────────────────────────────────────────
+
+model HaEquipmentMaintenanceLog {
+  id        String @id @default(uuid())
+  orgId     String @map("org_id")
+
+  category      HaMaintenanceCategory @map("category")
+  status        HaMaintenanceStatus   @default(COMPLETE)
+  equipmentId   String                @map("equipment_id")
+  equipmentType String                @map("equipment_type") // "freeze_dryer" | "water_filtration"
+  equipmentName String                @map("equipment_name")
+
+  date          DateTime
+  description   String
+  actionsTaken  String?  @map("actions_taken")
+  partsReplaced String?  @map("parts_replaced")
+  performedBy   String   @map("performed_by")
+  verifiedBy    String?  @map("verified_by")
+  nextDueDate   DateTime? @map("next_due_date")
+  notes         String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  org Organization @relation(fields: [orgId], references: [id])
+
+  @@map("ha_equipment_maintenance_logs")
+}
+
+// ─── Alert ───────────────────────────────────────────────────────────────
+
+model HaAlert {
+  id        String @id @default(uuid())
+  orgId     String @map("org_id")
+
+  freezeDryerId  String?          @map("freeze_dryer_id")
+  category       HaAlertCategory
+  severity       HaAlertSeverity  @default(info)
+  status         HaAlertStatus    @default(ACTIVE)
+  message        String
+  acknowledgedAt DateTime?        @map("acknowledged_at")
+  acknowledgedBy String?          @map("acknowledged_by")
+
+  resolvedAt DateTime? @map("resolved_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  org         Organization @relation(fields: [orgId], references: [id])
+  freezeDryer FreezeDryer? @relation(fields: [freezeDryerId], references: [id])
+
+  @@map("ha_alerts")
+}
+
+// ─── AI Session ──────────────────────────────────────────────────────────
+
+model HaAiSession {
+  id        String @id @default(uuid())
+  orgId     String @map("org_id")
+  userId    String @map("user_id")
+
+  title           String?
+  totalTokenCount Int?    @default(0) @map("total_token_count")
+  totalCostUsd    Float?  @default(0) @map("total_cost_usd")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  org      Organization  @relation(fields: [orgId], references: [id])
+  messages HaAiMessage[]
+
+  @@map("ha_ai_sessions")
+}
+
+model HaAiMessage {
+  id        String @id @default(uuid())
+  sessionId String @map("session_id")
+
+  role    String // "user" | "model" | "function"
+  content String
+  imageUrl   String? @map("image_url")
+  toolCalls  Json?   @map("tool_calls")
+  tokenCount Int?    @map("token_count")
+  costUsd    Float?  @map("cost_usd")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  session HaAiSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("ha_ai_messages")
+}

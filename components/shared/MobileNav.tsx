@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { NavLink } from '@/components/shared/NavLink'
 
 type Props = {
     userName: string
@@ -23,7 +24,7 @@ const NAV_ITEMS = [
         { href: '/cleaning', icon: 'cleaning_services', label: 'Cleaning Logs' },
     ]},
     { section: 'Intelligence', items: [
-        { href: '/ai', icon: 'smart_toy', label: 'AI Assistant' },
+        // AI Assistant moved to bottom tab bar and sidebar glow button
         { href: '/analytics', icon: 'analytics', label: 'Analytics' },
         { href: '/compliance', icon: 'verified', label: 'Compliance' },
     ]},
@@ -91,20 +92,11 @@ export function MobileNav({ userName, orgName, role, plan }: Props) {
                                 {section.section}
                             </p>
                             {section.items.map((item) => (
-                                <a
-                                    key={item.href}
-                                    href={item.href}
-                                    onClick={() => setOpen(false)}
-                                    className="flex items-center gap-3 px-3 py-2.5 text-sm text-muted hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-                                >
-                                    <span
-                                        className="material-symbols-outlined text-[20px] text-muted/70"
-                                        style={{ fontVariationSettings: "'FILL' 0, 'wght' 300, 'opsz' 20" }}
-                                    >
-                                        {item.icon}
-                                    </span>
-                                    {item.label}
-                                </a>
+                                <div key={item.href} onClick={() => setOpen(false)}>
+                                    <NavLink href={item.href} icon={item.icon}>
+                                        {item.label}
+                                    </NavLink>
+                                </div>
                             ))}
                         </div>
                     ))}

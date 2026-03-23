@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
+import { MobileNav } from '@/components/shared/MobileNav'
 
 export default async function DashboardLayout({
     children,
@@ -19,14 +20,14 @@ export default async function DashboardLayout({
 
     return (
         <div className="flex min-h-screen bg-background">
-            {/* Sidebar */}
+            {/* Desktop Sidebar */}
             <aside className="hidden lg:flex lg:flex-col lg:w-sidebar lg:fixed lg:inset-y-0 border-r border-white/5 bg-surface">
                 {/* Logo */}
-                <div className="flex items-center h-topbar px-6 border-b border-white/5">
-                    <span className="text-lg font-semibold text-white">
-                        Hash Agent
-                    </span>
-                    <span className="ml-2 text-xs font-mono text-primary px-1.5 py-0.5 bg-primary/10 rounded">
+                <div className="flex items-center h-topbar px-5 border-b border-white/5">
+                    <a href="/dashboard" className="flex items-center gap-2">
+                        <span className="text-lg font-semibold text-white">Hash Agent</span>
+                    </a>
+                    <span className="ml-auto text-[10px] font-mono text-primary px-1.5 py-0.5 bg-primary/10 rounded">
                         {plan}
                     </span>
                 </div>
@@ -52,10 +53,6 @@ export default async function DashboardLayout({
                         <NavLink href="/analytics" icon="analytics">Analytics</NavLink>
                         <NavLink href="/compliance" icon="verified">Compliance</NavLink>
                     </NavSection>
-
-                    <NavSection title="Admin">
-                        <NavLink href="/settings" icon="settings">Settings</NavLink>
-                    </NavSection>
                 </nav>
 
                 {/* User info */}
@@ -66,18 +63,31 @@ export default async function DashboardLayout({
             </aside>
 
             {/* Main content */}
-            <main className="flex-1 lg:pl-sidebar">
+            <main className="flex-1 lg:pl-sidebar min-w-0">
                 {/* Top bar */}
-                <header className="sticky top-0 z-30 flex items-center h-topbar px-6 border-b border-white/5 bg-background/80 backdrop-blur-md">
-                    <div className="flex-1" />
+                <header className="sticky top-0 z-30 flex items-center h-topbar px-4 lg:px-6 border-b border-white/5 bg-background/80 backdrop-blur-md">
+                    {/* Mobile menu button */}
+                    <MobileNav
+                        userName={userName}
+                        orgName={orgName}
+                        role={role}
+                        plan={plan}
+                    />
+
+                    {/* Desktop: logo area is in sidebar, so just spacer */}
+                    <div className="flex-1 lg:hidden">
+                        <span className="text-base font-semibold text-white">Hash Agent</span>
+                    </div>
+                    <div className="hidden lg:block flex-1" />
+
                     {/* Cmd+K shortcut hint */}
                     <kbd className="hidden sm:inline-flex items-center gap-1 text-xs text-muted border border-white/10 rounded px-2 py-1">
-                        <span className="text-[10px]">⌘</span>K
+                        <span className="text-[10px]">&#8984;</span>K
                     </kbd>
                 </header>
 
                 {/* Page content */}
-                <div className="p-6">
+                <div className="p-4 lg:p-6">
                     {children}
                 </div>
             </main>
@@ -89,8 +99,8 @@ export default async function DashboardLayout({
 
 function NavSection({ title, children }: { title: string; children: React.ReactNode }) {
     return (
-        <div className="space-y-1">
-            <p className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted/60">
+        <div className="space-y-0.5">
+            <p className="px-3 pt-5 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted/50">
                 {title}
             </p>
             {children}
@@ -110,9 +120,12 @@ function NavLink({
     return (
         <a
             href={href}
-            className="flex items-center gap-3 px-3 py-2 text-sm text-muted hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+            className="flex items-center gap-3 px-3 py-2 text-sm text-muted hover:text-white hover:bg-white/5 rounded-lg transition-colors group"
         >
-            <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400" }}>
+            <span
+                className="material-symbols-outlined text-[20px] text-muted/70 group-hover:text-white transition-colors"
+                style={{ fontVariationSettings: "'FILL' 0, 'wght' 300, 'opsz' 20" }}
+            >
                 {icon}
             </span>
             {children}

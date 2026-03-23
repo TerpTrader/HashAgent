@@ -16,10 +16,10 @@ interface RosinCardProps {
 }
 
 const STATUS_STYLES: Record<RosinBatchStatus, { label: string; className: string }> = {
-    PRESSING: { label: 'Pressing', className: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
-    POST_PROCESSING: { label: 'Post Processing', className: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-    DECARB: { label: 'Decarb', className: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
-    COMPLETE: { label: 'Complete', className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+    PRESSING: { label: 'Pressing', className: 'bg-hash-pressing/10 text-hash-pressing border-hash-pressing/20' },
+    POST_PROCESSING: { label: 'Post Processing', className: 'bg-accent-purple/10 text-accent-purple border-accent-purple/20' },
+    DECARB: { label: 'Decarb', className: 'bg-hash-decarb/10 text-hash-decarb border-hash-decarb/20' },
+    COMPLETE: { label: 'Complete', className: 'bg-hash-complete/10 text-hash-complete border-hash-complete/20' },
     ARCHIVED: { label: 'Archived', className: 'bg-white/5 text-muted border-white/10' },
 }
 
@@ -33,9 +33,9 @@ const PRODUCT_TYPE_LABELS: Record<RosinProductType, string> = {
 
 function getYieldColor(pct: number | null): string {
     if (pct == null) return 'text-muted'
-    if (pct >= 70) return 'text-emerald-400'
-    if (pct >= 50) return 'text-amber-400'
-    return 'text-red-400'
+    if (pct >= 70) return 'text-hash-complete'
+    if (pct >= 50) return 'text-accent-warning'
+    return 'text-accent-error'
 }
 
 export function RosinCard({

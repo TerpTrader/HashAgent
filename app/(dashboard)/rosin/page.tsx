@@ -1,98 +1,75 @@
-'use client'
-
-import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { auth } from '@/lib/auth'
+import { db } from '@/lib/db'
+import { redirect } from 'next/navigation'
+import { Plus } from 'lucide-react'
 import { RosinCard } from '@/components/rosin/RosinCard'
-import { Loader2, Plus } from 'lucide-react'
 
-interface RosinBatch {
-    id: string
-    strain: string
-    batchNumber: string
-    processDate: string
-    productType: 'FULL_PRESS' | 'BADDER' | 'VAPE' | 'LIVE_ROSIN' | 'COLD_CURE'
-    rosinYieldWeightG: number | null
-    rosinYieldPct: number | null
-    status: 'PRESSING' | 'POST_PROCESSING' | 'DECARB' | 'COMPLETE' | 'ARCHIVED'
-    companyProcessedFor: string | null
+export const metadata = {
+    title: 'Rosin Batches',
 }
 
-export default function RosinListPage() {
-    const [batches, setBatches] = useState<RosinBatch[]>([])
-    const [loading, setLoading] = useState(true)
+export default async function RosinListPage() {
+    const session = await auth()
+    if (!session?.orgId) redirect('/login')
 
-    useEffect(() => {
-        async function fetchBatches() {
-            try {
-                const res = await fetch('/api/rosin')
-                const json = await res.json()
-                setBatches(json.data ?? [])
-            } catch {
-                // silent
-            } finally {
-                setLoading(false)
-            }
-        }
-        fetchBatches()
-    }, [])
+    const batches = await db.rosinBatch.findMany({
+        where: { orgId: session.orgId },
+        orderBy: { processDate: 'desc' },
+        take: 50,
+    })
 
     return (
         <div className="animate-fade-in">
-            {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-semibold text-white">Rosin Batches</h1>
                     <p className="mt-1 text-sm text-muted">
-                        Track rosin presses from source hash to finished product.
+                        {batches.length} batch{batches.length !== 1 ? 'es' : ''} recorded
                     </p>
                 </div>
-                <a
+                <Link
                     href="/rosin/new"
                     className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-dark"
                 >
                     <Plus className="h-4 w-4" />
                     New Press
-                </a>
+                </Link>
             </div>
 
-            {/* Content */}
-            {loading ? (
-                <div className="mt-16 flex items-center justify-center">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted" />
-                    <span className="ml-2 text-sm text-muted">Loading rosin batches...</span>
-                </div>
-            ) : batches.length === 0 ? (
-                <div className="mt-16 text-center">
-                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/5">
-                        <span className="material-symbols-outlined text-3xl text-muted">local_fire_department</span>
-                    </div>
-                    <h3 className="mt-4 text-lg font-medium text-white">No rosin batches yet</h3>
-                    <p className="mt-1 text-sm text-muted">
-                        Press your first rosin batch from completed bubble hash.
-                    </p>
-                    <a
-                        href="/rosin/new"
-                        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-dark"
-                    >
-                        <Plus className="h-4 w-4" />
-                        New Press
-                    </a>
-                </div>
-            ) : (
+            {batches.length > 0 ? (
                 <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {batches.map(batch => (
+                    {batches.map((batch) => (
                         <RosinCard
                             key={batch.id}
                             id={batch.id}
                             strain={batch.strain}
                             batchNumber={batch.batchNumber}
-                            processDate={batch.processDate}
-                            productType={batch.productType}
+                            processDate={batch.processDate.toISOString()}
+                            productType={batch.productType as any}
                             rosinYieldWeightG={batch.rosinYieldWeightG}
                             rosinYieldPct={batch.rosinYieldPct}
-                            status={batch.status}
+                            status={batch.status as any}
                             companyProcessedFor={batch.companyProcessedFor}
                         />
                     ))}
+                </div>
+            ) : (
+                <div className="mt-16 flex flex-col items-center justify-center text-center">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+                        <span className="material-symbols-outlined text-3xl text-primary">local_fire_department</span>
+                    </div>
+                    <h2 className="mt-4 text-lg font-semibold text-white">No rosin batches yet</h2>
+                    <p className="mt-1 max-w-sm text-sm text-muted">
+                        Press your first rosin batch from completed bubble hash.
+                    </p>
+                    <Link
+                        href="/rosin/new"
+                        className="mt-6 flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-dark"
+                    >
+                        <Plus className="h-4 w-4" />
+                        New Press
+                    </Link>
                 </div>
             )}
         </div>

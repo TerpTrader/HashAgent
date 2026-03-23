@@ -95,14 +95,18 @@ export default async function BatchDetailPage({
                     </Link>
                     <button
                         type="button"
-                        className="flex items-center gap-1.5 rounded-lg bg-white/5 px-3 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors"
+                        disabled
+                        title="PDF export coming soon"
+                        className="flex items-center gap-1.5 rounded-lg bg-white/5 px-3 py-2 text-sm font-medium text-muted cursor-not-allowed opacity-50 transition-colors"
                     >
                         <FileDown className="h-3.5 w-3.5" />
                         Export PDF
                     </button>
                     <button
                         type="button"
-                        className="flex items-center gap-1.5 rounded-lg bg-accent-error/10 px-3 py-2 text-sm font-medium text-accent-error hover:bg-accent-error/20 transition-colors"
+                        disabled
+                        title="Archive coming soon"
+                        className="flex items-center gap-1.5 rounded-lg bg-accent-error/10 px-3 py-2 text-sm font-medium text-muted cursor-not-allowed opacity-50 transition-colors"
                     >
                         <Archive className="h-3.5 w-3.5" />
                         Archive

@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { ComplianceCard } from '@/components/compliance/ComplianceCard'
 import type { ComplianceReport, ComplianceIssueType } from '@/lib/metrc-utils'
-import { ShieldCheck, Loader2, AlertTriangle, FileWarning, UserX, TestTube } from 'lucide-react'
+import { ShieldCheck, AlertTriangle, FileWarning, UserX, TestTube } from 'lucide-react'
+import { Skeleton, SkeletonKpi, SkeletonCard } from '@/components/ui/Skeleton'
 
 type TabKey = 'all' | ComplianceIssueType
 
@@ -91,8 +92,14 @@ export default function CompliancePage() {
             </div>
 
             {loading && (
-                <div className="flex items-center justify-center py-20">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                        <SkeletonCard className="h-44" />
+                        <div className="lg:col-span-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            {Array.from({ length: 4 }).map((_, i) => <SkeletonKpi key={i} />)}
+                        </div>
+                    </div>
+                    <Skeleton className="h-10 w-full" />
                 </div>
             )}
 

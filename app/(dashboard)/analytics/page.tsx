@@ -6,7 +6,8 @@ import { KpiSummary } from '@/components/analytics/KpiSummary'
 import { YieldByStrainChart } from '@/components/analytics/YieldByStrainChart'
 import { MicronDistributionChart } from '@/components/analytics/MicronDistributionChart'
 import { RosinTrendChart } from '@/components/analytics/RosinTrendChart'
-import { BarChart3, Loader2 } from 'lucide-react'
+import { BarChart3 } from 'lucide-react'
+import { SkeletonKpi, SkeletonCard } from '@/components/ui/Skeleton'
 
 type AnalyticsData = {
     period: string
@@ -99,8 +100,14 @@ export default function AnalyticsPage() {
 
             {/* Loading */}
             {loading && (
-                <div className="flex items-center justify-center py-20">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <div className="space-y-6">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        {Array.from({ length: 4 }).map((_, i) => <SkeletonKpi key={i} />)}
+                    </div>
+                    <div className="grid lg:grid-cols-2 gap-4">
+                        <SkeletonCard className="h-64" />
+                        <SkeletonCard className="h-64" />
+                    </div>
                 </div>
             )}
 

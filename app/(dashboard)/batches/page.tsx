@@ -42,18 +42,19 @@ export default async function BatchesPage() {
             {/* Batch Grid or Empty State */}
             {batches.length > 0 ? (
                 <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {batches.map((batch) => (
-                        <BatchCard
-                            key={batch.id}
-                            id={batch.id}
-                            strain={batch.strain}
-                            batchNumber={batch.batchNumber}
-                            washDate={batch.washDate.toISOString()}
-                            status={batch.status as any}
-                            totalYieldG={batch.totalYieldG}
-                            yieldPct={batch.yieldPct}
-                            qualityTier={batch.qualityTier as any}
-                        />
+                    {batches.map((batch, index) => (
+                        <div key={batch.id} className="stagger-fade-in" style={{ '--stagger-index': index } as React.CSSProperties}>
+                            <BatchCard
+                                id={batch.id}
+                                strain={batch.strain}
+                                batchNumber={batch.batchNumber}
+                                washDate={batch.washDate.toISOString()}
+                                status={batch.status as any}
+                                totalYieldG={batch.totalYieldG}
+                                yieldPct={batch.yieldPct}
+                                qualityTier={batch.qualityTier as any}
+                            />
+                        </div>
                     ))}
                 </div>
             ) : (

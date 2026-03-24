@@ -39,19 +39,20 @@ export default async function RosinListPage() {
 
             {batches.length > 0 ? (
                 <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {batches.map((batch) => (
-                        <RosinCard
-                            key={batch.id}
-                            id={batch.id}
-                            strain={batch.strain}
-                            batchNumber={batch.batchNumber}
-                            processDate={batch.processDate.toISOString()}
-                            productType={batch.productType as any}
-                            rosinYieldWeightG={batch.rosinYieldWeightG}
-                            rosinYieldPct={batch.rosinYieldPct}
-                            status={batch.status as any}
-                            companyProcessedFor={batch.companyProcessedFor}
-                        />
+                    {batches.map((batch, index) => (
+                        <div key={batch.id} className="stagger-fade-in" style={{ '--stagger-index': index } as React.CSSProperties}>
+                            <RosinCard
+                                id={batch.id}
+                                strain={batch.strain}
+                                batchNumber={batch.batchNumber}
+                                processDate={batch.processDate.toISOString()}
+                                productType={batch.productType as any}
+                                rosinYieldWeightG={batch.rosinYieldWeightG}
+                                rosinYieldPct={batch.rosinYieldPct}
+                                status={batch.status as any}
+                                companyProcessedFor={batch.companyProcessedFor}
+                            />
+                        </div>
                     ))}
                 </div>
             ) : (

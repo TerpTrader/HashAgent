@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+    .stagger-fade-in {
+        animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+        animation-delay: calc(var(--stagger-index, 0) * 50ms);
+    }
+}
+
 @layer base {
     :root {
         --background: 0 0% 2%;

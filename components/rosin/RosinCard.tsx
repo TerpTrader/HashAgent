@@ -94,12 +94,12 @@ export function RosinCard({
 
             {/* Footer */}
             <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-3">
-                <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-muted">
+                <span className="rounded bg-white/5 px-1.5 py-0.5 text-xs font-medium text-muted">
                     {PRODUCT_TYPE_LABELS[productType]}
                 </span>
                 <div className="flex items-center gap-2 text-xs text-muted">
                     {companyProcessedFor && (
-                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
                             {companyProcessedFor}
                         </span>
                     )}

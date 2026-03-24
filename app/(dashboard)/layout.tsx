@@ -32,7 +32,7 @@ export default async function DashboardLayout({
                         <a href="/dashboard" className="flex items-center gap-2">
                             <span className="text-lg font-semibold text-white">Hash Agent</span>
                         </a>
-                        <span className="ml-auto text-[10px] font-mono text-primary px-1.5 py-0.5 bg-primary/10 rounded">
+                        <span className="ml-auto text-xs font-mono text-primary px-1.5 py-0.5 bg-primary/10 rounded">
                             {plan}
                         </span>
                     </div>

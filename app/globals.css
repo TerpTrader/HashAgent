@@ -40,3 +40,12 @@
 *:focus-visible {
     @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
 }
+
+/* Hide scrollbar while preserving scroll functionality */
+.scrollbar-none::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

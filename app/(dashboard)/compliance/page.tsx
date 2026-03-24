@@ -143,7 +143,9 @@ export default function CompliancePage() {
                     </div>
 
                     {/* Tabs */}
-                    <div className="flex items-center gap-1 overflow-x-auto border-b border-white/5 pb-px">
+                    <div className="relative">
+                        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent sm:hidden z-10" />
+                        <div className="flex items-center gap-1 overflow-x-auto border-b border-white/5 pb-px scrollbar-none">
                         {TABS.map((tab) => {
                             const count = tab.key === 'all'
                                 ? report.totalIssues
@@ -168,6 +170,7 @@ export default function CompliancePage() {
                                 </button>
                             )
                         })}
+                        </div>
                     </div>
 
                     {/* Issue List */}

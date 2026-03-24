@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -126,6 +126,18 @@ export function BubbleHashWizard() {
     // ─── Step validation + navigation ────────────────────────────────────────
 
     const forms = [step0Form, step1Form, step2Form, step3Form, step4Form]
+
+    const isDirty = step0Form.formState.isDirty || step1Form.formState.isDirty ||
+        step2Form.formState.isDirty || step3Form.formState.isDirty || step4Form.formState.isDirty
+
+    useEffect(() => {
+        if (!isDirty) return
+        const handler = (e: BeforeUnloadEvent) => {
+            e.preventDefault()
+        }
+        window.addEventListener('beforeunload', handler)
+        return () => window.removeEventListener('beforeunload', handler)
+    }, [isDirty])
 
     const handleNext = useCallback(async () => {
         const currentForm = forms[currentStep]

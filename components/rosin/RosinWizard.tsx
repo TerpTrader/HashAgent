@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
@@ -98,6 +98,18 @@ export function RosinWizard() {
     })
 
     const forms = [sourceForm, pressForm, processingForm, postProcessForm, outputForm]
+
+    const isDirty = sourceForm.formState.isDirty || pressForm.formState.isDirty ||
+        processingForm.formState.isDirty || postProcessForm.formState.isDirty || outputForm.formState.isDirty
+
+    useEffect(() => {
+        if (!isDirty) return
+        const handler = (e: BeforeUnloadEvent) => {
+            e.preventDefault()
+        }
+        window.addEventListener('beforeunload', handler)
+        return () => window.removeEventListener('beforeunload', handler)
+    }, [isDirty])
 
     async function handleNext() {
         const currentForm = forms[currentStep]

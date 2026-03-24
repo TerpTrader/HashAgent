@@ -52,7 +52,7 @@ export function StartingMaterialStep({ form }: StartingMaterialStepProps) {
 
                 <div>
                     <label htmlFor="farmSource" className="mb-1.5 block text-sm text-muted">
-                        Farm Source
+                        Farm Source <span className="text-muted/50 font-normal">(optional)</span>
                     </label>
                     <input
                         id="farmSource"
@@ -120,7 +120,7 @@ export function StartingMaterialStep({ form }: StartingMaterialStepProps) {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div>
                         <label htmlFor="metrcSourceUid" className="mb-1.5 block text-sm text-muted">
-                            METRC Source UID
+                            METRC Source UID <span className="text-muted/50 font-normal">(optional)</span>
                         </label>
                         <input
                             id="metrcSourceUid"
@@ -133,7 +133,7 @@ export function StartingMaterialStep({ form }: StartingMaterialStepProps) {
 
                     <div>
                         <label htmlFor="licenseKey" className="mb-1.5 block text-sm text-muted">
-                            License Key
+                            License Key <span className="text-muted/50 font-normal">(optional)</span>
                         </label>
                         <input
                             id="licenseKey"
@@ -146,7 +146,7 @@ export function StartingMaterialStep({ form }: StartingMaterialStepProps) {
 
                     <div>
                         <label htmlFor="cleaningLogRef" className="mb-1.5 block text-sm text-muted">
-                            Cleaning Log Ref
+                            Cleaning Log Ref <span className="text-muted/50 font-normal">(optional)</span>
                         </label>
                         <input
                             id="cleaningLogRef"

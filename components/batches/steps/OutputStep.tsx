@@ -60,7 +60,7 @@ export function OutputStep({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                     <label htmlFor="productName" className="mb-1.5 block text-sm text-muted">
-                        Product Name
+                        Product Name <span className="text-muted/50 font-normal">(optional)</span>
                     </label>
                     <input
                         id="productName"
@@ -101,7 +101,7 @@ export function OutputStep({
             {/* METRC Product UID */}
             <div className="max-w-sm">
                 <label htmlFor="metrcProductUid" className="mb-1.5 block text-sm text-muted">
-                    METRC Product UID
+                    METRC Product UID <span className="text-muted/50 font-normal">(optional)</span>
                 </label>
                 <input
                     id="metrcProductUid"
@@ -164,7 +164,7 @@ export function OutputStep({
             {/* Manufacturing Date */}
             <div className="max-w-xs">
                 <label htmlFor="manufacturingDate" className="mb-1.5 block text-sm text-muted">
-                    Manufacturing Date
+                    Manufacturing Date <span className="text-muted/50 font-normal">(optional)</span>
                 </label>
                 <input
                     id="manufacturingDate"

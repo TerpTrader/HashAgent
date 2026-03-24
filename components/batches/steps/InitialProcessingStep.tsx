@@ -77,7 +77,7 @@ export function InitialProcessingStep({ form }: InitialProcessingStepProps) {
 
                 <div>
                     <label htmlFor="wetWasteWeightG" className="mb-1.5 block text-sm text-muted">
-                        Wet Waste Weight (g)
+                        Wet Waste Weight (g) <span className="text-muted/50 font-normal">(optional)</span>
                     </label>
                     <input
                         id="wetWasteWeightG"
@@ -92,7 +92,7 @@ export function InitialProcessingStep({ form }: InitialProcessingStepProps) {
 
                 <div>
                     <label htmlFor="expectedYieldPct" className="mb-1.5 block text-sm text-muted">
-                        Expected Yield (%)
+                        Expected Yield (%) <span className="text-muted/50 font-normal">(optional)</span>
                     </label>
                     <input
                         id="expectedYieldPct"

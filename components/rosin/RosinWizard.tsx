@@ -201,7 +201,7 @@ export function RosinWizard() {
             </WizardShell>
 
             {error && (
-                <div className="mx-auto mt-4 max-w-3xl animate-fade-in rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-400">
+                <div className="mx-auto mt-4 max-w-3xl animate-fade-in rounded-lg border border-accent-error/30 bg-accent-error/5 px-4 py-3 text-sm text-accent-error">
                     {error}
                 </div>
             )}

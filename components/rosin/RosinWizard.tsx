@@ -10,6 +10,7 @@ import { PressSetupStep } from './steps/PressSetupStep'
 import { ProcessingStep } from './steps/ProcessingStep'
 import { PostProcessingStep } from './steps/PostProcessingStep'
 import { OutputStep } from './steps/OutputStep'
+import { toast } from '@/lib/hooks/useToast'
 import {
     sourceSelectionSchema,
     pressSetupSchema,
@@ -141,6 +142,11 @@ export function RosinWizard() {
                 return
             }
 
+            toast({
+                title: 'Rosin batch created',
+                description: `${sourceForm.getValues().strain} press logged successfully.`,
+                variant: 'success',
+            })
             router.push(`/rosin/${json.data.id}`)
         } catch {
             setError('Network error. Please try again.')

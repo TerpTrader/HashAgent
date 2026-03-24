@@ -27,6 +27,7 @@ import {
 } from '@/lib/validations/batch'
 
 import { calculateTotalMicronYield } from '@/lib/utils'
+import { toast } from '@/lib/hooks/useToast'
 
 // ─── Step definitions ────────────────────────────────────────────────────────
 
@@ -174,6 +175,11 @@ export function BubbleHashWizard() {
             }
 
             const { data } = await res.json()
+            toast({
+                title: 'Batch created',
+                description: `${step0Form.getValues().strain} batch logged successfully.`,
+                variant: 'success',
+            })
             router.push(`/batches/${data.id}`)
         } catch (err) {
             setSubmitError(err instanceof Error ? err.message : 'An unexpected error occurred')

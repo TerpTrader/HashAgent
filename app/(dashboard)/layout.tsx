@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { auth } from '@/lib/auth'
 import { MobileNav } from '@/components/shared/MobileNav'
 import { MobileTabBar } from '@/components/shared/MobileTabBar'
@@ -29,9 +30,9 @@ export default async function DashboardLayout({
                 <aside className="hidden lg:flex lg:flex-col lg:w-sidebar lg:fixed lg:inset-y-0 border-r border-white/5 bg-surface">
                     {/* Logo */}
                     <div className="flex items-center h-topbar px-5 border-b border-white/5">
-                        <a href="/dashboard" className="flex items-center gap-2">
+                        <Link href="/dashboard" className="flex items-center gap-2">
                             <span className="text-lg font-semibold text-white">Hash Agent</span>
-                        </a>
+                        </Link>
                         <span className="ml-auto text-xs font-mono text-primary px-1.5 py-0.5 bg-primary/10 rounded">
                             {plan}
                         </span>

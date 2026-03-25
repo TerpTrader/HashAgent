@@ -26,6 +26,16 @@ export default function RegisterPage() {
                 body: JSON.stringify({ name, email, password, orgName }),
             })
 
+            // Handle non-JSON responses (e.g. 500 HTML error pages)
+            const contentType = res.headers.get('content-type') ?? ''
+            if (!contentType.includes('application/json')) {
+                const text = await res.text()
+                console.error('Non-JSON response:', res.status, text.slice(0, 200))
+                setError(`Server error (${res.status}). Please try again.`)
+                setLoading(false)
+                return
+            }
+
             const data = await res.json()
 
             if (!res.ok) {
@@ -35,8 +45,9 @@ export default function RegisterPage() {
             }
 
             router.push('/login?registered=true')
-        } catch {
-            setError('Something went wrong')
+        } catch (err) {
+            console.error('Registration error:', err)
+            setError(err instanceof Error ? err.message : 'Something went wrong')
             setLoading(false)
         }
     }

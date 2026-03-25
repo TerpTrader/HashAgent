@@ -41,6 +41,12 @@ export function Footer() {
                         <p className="text-xs text-[#9ca3af] mt-3 max-w-[200px] leading-relaxed">
                             AI-powered hash lab management for solventless concentrate manufacturers.
                         </p>
+                        <a
+                            href="mailto:admin@terpagent.com"
+                            className="text-xs text-primary/70 hover:text-primary mt-2 inline-block transition-colors"
+                        >
+                            admin@terpagent.com
+                        </a>
                     </div>
 
                     {/* Nav columns */}

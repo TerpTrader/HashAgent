@@ -32,8 +32,36 @@ export function Hero() {
                             <p className="text-lg text-[#9ca3af] max-w-lg leading-relaxed">
                                 Track every wash, press, and cure. AI-powered yield analytics
                                 and equipment monitoring for solventless concentrate manufacturers.
-                                Developed by Emerald Cup, Ego Clash, and Dabadoo winning Hash Maker: Cherryblossom Belle.
                             </p>
+
+                            {/* Credibility badge — Cherryblossom Belle */}
+                            <div className="max-w-lg">
+                                <div className="flex items-center gap-4 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm">
+                                    {/* Trophy accent */}
+                                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+                                        <span className="text-lg">🏆</span>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[11px] text-muted uppercase tracking-wider leading-none mb-1">
+                                            Built by award-winning hash maker
+                                        </p>
+                                        <p className="text-sm font-semibold text-white leading-tight">
+                                            Cherryblossom Belle
+                                        </p>
+                                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1">
+                                            <span className="text-[10px] font-medium text-primary/80 px-1.5 py-0.5 rounded bg-primary/[0.08]">
+                                                Emerald Cup
+                                            </span>
+                                            <span className="text-[10px] font-medium text-primary/80 px-1.5 py-0.5 rounded bg-primary/[0.08]">
+                                                Ego Clash
+                                            </span>
+                                            <span className="text-[10px] font-medium text-primary/80 px-1.5 py-0.5 rounded bg-primary/[0.08]">
+                                                Dabadoo
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
                             <div className="flex items-center gap-4 pt-2">
                                 <Link

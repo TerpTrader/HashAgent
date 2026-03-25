@@ -43,7 +43,7 @@ export function Hero() {
                                     </div>
                                     <div className="min-w-0">
                                         <p className="text-[11px] text-muted uppercase tracking-wider leading-none mb-1">
-                                            Built by award-winning hash maker
+                                            Co-developed by award-winning hash maker
                                         </p>
                                         <p className="text-sm font-semibold text-white leading-tight">
                                             Cherryblossom Belle

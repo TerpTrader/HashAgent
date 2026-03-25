@@ -5,7 +5,14 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
     const checks: Record<string, string> = {
-        DATABASE_URL: process.env.DATABASE_URL ? 'SET (ends: ...' + process.env.DATABASE_URL.slice(-30) + ')' : 'MISSING',
+        DATABASE_URL: process.env.DATABASE_URL
+            ? (() => {
+                try {
+                    const u = new URL(process.env.DATABASE_URL)
+                    return `user=${u.username} host=${u.hostname} port=${u.port} db=${u.pathname}`
+                } catch { return 'SET but unparseable' }
+            })()
+            : 'MISSING',
         DIRECT_URL: process.env.DIRECT_URL ? 'SET' : 'MISSING',
         NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET ? 'SET' : 'MISSING',
         AUTH_TRUST_HOST: process.env.AUTH_TRUST_HOST ?? 'NOT SET',

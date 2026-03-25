@@ -135,6 +135,18 @@ model OrgMember {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// ADMIN SETTINGS (key-value store for platform config)
+// ═══════════════════════════════════════════════════════════════════════════
+
+model HaAdminSetting {
+  key       String   @id
+  value     String   // JSON-encoded value
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("ha_admin_settings")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // HASH AGENT ENUMS
 // ═══════════════════════════════════════════════════════════════════════════
 

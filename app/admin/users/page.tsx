@@ -6,7 +6,9 @@ import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucid
 import { formatDistanceToNow, format } from 'date-fns'
 import { ExportButton } from '@/components/admin/ExportButton'
 
-const PLANS = ['HOME', 'PRO', 'COMMERCIAL', 'ENTERPRISE'] as const
+const ALL_PLANS = ['HOME', 'PRO', 'COMMERCIAL', 'ENTERPRISE'] as const
+
+type TierInfo = { name: string; enabled: boolean }
 
 const PLAN_COLORS: Record<string, string> = {
     HOME: '#6b7280',
@@ -49,7 +51,7 @@ const SORTABLE_COLUMNS = [
 const LIMIT = 25
 
 // Inline plan-change dropdown that appears on click
-function PlanBadge({ plan, orgId, onChanged }: { plan: string; orgId: string; onChanged: () => void }) {
+function PlanBadge({ plan, orgId, onChanged, enabledTiers }: { plan: string; orgId: string; onChanged: () => void; enabledTiers: string[] }) {
     const [open, setOpen] = useState(false)
     const [saving, setSaving] = useState(false)
     const ref = useRef<HTMLDivElement>(null)
@@ -99,22 +101,30 @@ function PlanBadge({ plan, orgId, onChanged }: { plan: string; orgId: string; on
             </button>
             {open && (
                 <div className="absolute z-50 mt-1 left-0 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-xl py-1 min-w-[140px]">
-                    {PLANS.map((p) => (
-                        <button
-                            key={p}
-                            onClick={() => changePlan(p)}
-                            className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 hover:bg-white/[0.06] transition-colors ${
-                                p === plan ? 'text-white font-semibold' : 'text-muted'
-                            }`}
-                        >
-                            <span
-                                className="inline-block w-2 h-2 rounded-full"
-                                style={{ backgroundColor: PLAN_COLORS[p] }}
-                            />
-                            {p}
-                            {p === plan && <span className="ml-auto text-[10px] text-muted">current</span>}
-                        </button>
-                    ))}
+                    {ALL_PLANS.map((p) => {
+                        const isEnabled = enabledTiers.includes(p)
+                        const isCurrent = p === plan
+                        return (
+                            <button
+                                key={p}
+                                onClick={() => isEnabled ? changePlan(p) : undefined}
+                                disabled={!isEnabled && !isCurrent}
+                                className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 transition-colors ${
+                                    !isEnabled && !isCurrent
+                                        ? 'opacity-30 cursor-not-allowed'
+                                        : 'hover:bg-white/[0.06] cursor-pointer'
+                                } ${isCurrent ? 'text-white font-semibold' : 'text-muted'}`}
+                            >
+                                <span
+                                    className="inline-block w-2 h-2 rounded-full"
+                                    style={{ backgroundColor: PLAN_COLORS[p] }}
+                                />
+                                {p}
+                                {isCurrent && <span className="ml-auto text-[10px] text-muted">current</span>}
+                                {!isEnabled && !isCurrent && <span className="ml-auto text-[10px] text-red-400">disabled</span>}
+                            </button>
+                        )
+                    })}
                 </div>
             )}
         </div>
@@ -140,6 +150,31 @@ export default function AdminUsersPage() {
     }, [])
 
     const queryClient = useQueryClient()
+
+    // Fetch enabled tiers
+    const { data: tiersData } = useQuery<{ data: { tiers: TierInfo[] } }>({
+        queryKey: ['admin-tiers'],
+        queryFn: async () => {
+            const res = await fetch('/api/admin/tiers')
+            if (!res.ok) throw new Error('Failed to fetch tiers')
+            return res.json()
+        },
+    })
+
+    const enabledTiers = (tiersData?.data.tiers ?? ALL_PLANS.map(t => ({ name: t, enabled: true })))
+        .filter((t) => t.enabled)
+        .map((t) => t.name)
+
+    const allTierInfo = tiersData?.data.tiers ?? ALL_PLANS.map(t => ({ name: t, enabled: true }))
+
+    async function toggleTier(tier: string, enabled: boolean) {
+        await fetch('/api/admin/tiers', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tier, enabled }),
+        })
+        queryClient.invalidateQueries({ queryKey: ['admin-tiers'] })
+    }
 
     const { data, isLoading } = useQuery<UsersResponse>({
         queryKey: ['admin-users', page, debouncedSearch, sortBy, sortDir],
@@ -196,6 +231,44 @@ export default function AdminUsersPage() {
                     </p>
                 </div>
                 <ExportButton data={exportData} filename="hash-agent-users" />
+            </div>
+
+            {/* Tier Toggles */}
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-white">Plan Tiers</h3>
+                    <span className="text-[10px] text-muted uppercase tracking-wider">Global availability</span>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                    {allTierInfo.map((tier) => (
+                        <button
+                            key={tier.name}
+                            onClick={() => toggleTier(tier.name, !tier.enabled)}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
+                                tier.enabled
+                                    ? 'border-white/20 bg-white/[0.04] text-white'
+                                    : 'border-white/[0.06] bg-transparent text-muted opacity-50'
+                            }`}
+                        >
+                            <span
+                                className="w-2.5 h-2.5 rounded-full"
+                                style={{ backgroundColor: tier.enabled ? PLAN_COLORS[tier.name] : '#4b5563' }}
+                            />
+                            {tier.name}
+                            <span
+                                className={`ml-1 w-8 h-4 rounded-full relative transition-colors ${
+                                    tier.enabled ? 'bg-primary' : 'bg-white/10'
+                                }`}
+                            >
+                                <span
+                                    className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${
+                                        tier.enabled ? 'left-[18px]' : 'left-0.5'
+                                    }`}
+                                />
+                            </span>
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Search */}
@@ -303,6 +376,7 @@ export default function AdminUsersPage() {
                                                     <PlanBadge
                                                         plan={plan}
                                                         orgId={membership.org.id}
+                                                        enabledTiers={enabledTiers}
                                                         onChanged={() => queryClient.invalidateQueries({ queryKey: ['admin-users'] })}
                                                     />
                                                 ) : (

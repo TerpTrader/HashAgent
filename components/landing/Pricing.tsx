@@ -48,8 +48,7 @@ const tiers: Tier[] = [
     },
     {
         name: 'Commercial',
-        price: '$149',
-        period: '/mo',
+        price: 'TBD',
         description: 'For multi-facility operations',
         features: [
             'Everything in Pro',

@@ -11,6 +11,7 @@ type Tier = {
     cta: string
     ctaHref: string
     highlighted?: boolean
+    comingSoon?: boolean
 }
 
 const tiers: Tier[] = [
@@ -40,9 +41,10 @@ const tiers: Tier[] = [
             'COA storage',
             'Priority support',
         ],
-        cta: 'Start Free Trial',
-        ctaHref: '/register',
+        cta: 'Coming Soon',
+        ctaHref: '#',
         highlighted: true,
+        comingSoon: true,
     },
     {
         name: 'Commercial',
@@ -56,8 +58,9 @@ const tiers: Tier[] = [
             'Compliance reporting',
             'API access',
         ],
-        cta: 'Start Free Trial',
-        ctaHref: '/register',
+        cta: 'Coming Soon',
+        ctaHref: '#',
+        comingSoon: true,
     },
     {
         name: 'Enterprise',
@@ -69,8 +72,9 @@ const tiers: Tier[] = [
             'Custom integrations',
             'SLA guarantee',
         ],
-        cta: 'Contact Sales',
-        ctaHref: '/contact',
+        cta: 'Coming Soon',
+        ctaHref: '#',
+        comingSoon: true,
     },
 ]
 
@@ -100,9 +104,10 @@ export function Pricing() {
                                         : 'glass-card glass-card-hover'
                                 }`}
                             >
-                                {tier.highlighted && (
-                                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[9px] font-bold uppercase tracking-[0.15em] text-primary bg-primary/10 border border-primary/20 px-3 py-0.5 rounded-full">
-                                        Most Popular
+                                {/* Coming Soon badge — displayed on Pro, Commercial, Enterprise */}
+                                {tier.comingSoon && (
+                                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[9px] font-bold uppercase tracking-[0.15em] text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3 py-0.5 rounded-full whitespace-nowrap">
+                                        Coming Soon
                                     </span>
                                 )}
 
@@ -132,16 +137,22 @@ export function Pricing() {
                                     ))}
                                 </ul>
 
-                                <Link
-                                    href={tier.ctaHref}
-                                    className={`block text-center text-sm font-medium py-2.5 rounded-lg transition-all duration-300 ${
-                                        tier.highlighted
-                                            ? 'bg-primary text-white hover:bg-primary/90 hover:shadow-[0_0_24px_rgba(20,184,166,0.25)]'
-                                            : 'border border-white/[0.08] text-[#9ca3af] hover:text-white hover:border-white/[0.15]'
-                                    }`}
-                                >
-                                    {tier.cta}
-                                </Link>
+                                {tier.comingSoon ? (
+                                    <span className="block text-center text-sm font-medium py-2.5 rounded-lg border border-white/[0.06] text-[#6b7280] cursor-not-allowed">
+                                        Coming Soon
+                                    </span>
+                                ) : (
+                                    <Link
+                                        href={tier.ctaHref}
+                                        className={`block text-center text-sm font-medium py-2.5 rounded-lg transition-all duration-300 ${
+                                            tier.highlighted
+                                                ? 'bg-primary text-white hover:bg-primary/90 hover:shadow-[0_0_24px_rgba(20,184,166,0.25)]'
+                                                : 'border border-white/[0.08] text-[#9ca3af] hover:text-white hover:border-white/[0.15]'
+                                        }`}
+                                    >
+                                        {tier.cta}
+                                    </Link>
+                                )}
                             </div>
                         ))}
                     </div>

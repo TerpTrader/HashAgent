@@ -151,11 +151,15 @@ export function BillingTab({ currentPlan }: BillingTabProps) {
                             >
                                 <div className="flex items-center justify-between mb-1">
                                     <h5 className="text-sm font-semibold text-white">{plan.name}</h5>
-                                    {isCurrent && (
+                                    {isCurrent ? (
                                         <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">
                                             Current
                                         </span>
-                                    )}
+                                    ) : plan.key !== 'HOME' ? (
+                                        <span className="text-[10px] font-medium text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">
+                                            Coming Soon
+                                        </span>
+                                    ) : null}
                                 </div>
                                 <p className="text-xl font-bold text-white mb-1">{plan.price}</p>
                                 <p className="text-xs text-muted mb-4">{plan.description}</p>
@@ -182,9 +186,12 @@ export function BillingTab({ currentPlan }: BillingTabProps) {
                                         >
                                             Current Plan
                                         </button>
-                                    ) : isUpgrade ? (
-                                        <button className="w-full rounded-lg px-4 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-white transition-colors">
-                                            Upgrade
+                                    ) : plan.key !== 'HOME' ? (
+                                        <button
+                                            disabled
+                                            className="w-full rounded-lg px-4 py-2 text-sm font-medium border border-amber-400/20 text-amber-400/60 cursor-not-allowed"
+                                        >
+                                            Coming Soon
                                         </button>
                                     ) : (
                                         <button

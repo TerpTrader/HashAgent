@@ -75,6 +75,47 @@ export async function GET(req: NextRequest) {
 // POST /api/admin/users — Create a VIP account (User + Org + OrgMember)
 // ═══════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════
+// PATCH /api/admin/users — Update a user's organization plan
+// ═══════════════════════════════════════════════════════════════════════════
+
+const updatePlanSchema = z.object({
+    orgId: z.string().min(1),
+    plan: z.enum(['HOME', 'PRO', 'COMMERCIAL', 'ENTERPRISE']),
+})
+
+export async function PATCH(req: NextRequest) {
+    const session = await requireAdmin()
+    if (!session) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    let body: unknown
+    try {
+        body = await req.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    }
+
+    const parsed = updatePlanSchema.safeParse(body)
+    if (!parsed.success) {
+        return NextResponse.json(
+            { error: 'Validation failed', details: parsed.error.flatten() },
+            { status: 400 }
+        )
+    }
+
+    const { orgId, plan } = parsed.data
+
+    const org = await db.organization.update({
+        where: { id: orgId },
+        data: { plan },
+        select: { id: true, name: true, plan: true },
+    })
+
+    return NextResponse.json({ data: org })
+}
+
 const createVipSchema = z.object({
     name: z.string().min(1, 'Name is required'),
     email: z.string().email('Invalid email address'),

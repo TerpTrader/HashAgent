@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { ExportButton } from '@/components/admin/ExportButton'
+
+const PLANS = ['HOME', 'PRO', 'COMMERCIAL', 'ENTERPRISE'] as const
 
 const PLAN_COLORS: Record<string, string> = {
     HOME: '#6b7280',
@@ -46,6 +48,79 @@ const SORTABLE_COLUMNS = [
 
 const LIMIT = 25
 
+// Inline plan-change dropdown that appears on click
+function PlanBadge({ plan, orgId, onChanged }: { plan: string; orgId: string; onChanged: () => void }) {
+    const [open, setOpen] = useState(false)
+    const [saving, setSaving] = useState(false)
+    const ref = useRef<HTMLDivElement>(null)
+
+    // Close on outside click
+    useEffect(() => {
+        if (!open) return
+        function handleClick(e: MouseEvent) {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+        }
+        document.addEventListener('mousedown', handleClick)
+        return () => document.removeEventListener('mousedown', handleClick)
+    }, [open])
+
+    async function changePlan(newPlan: string) {
+        if (newPlan === plan) { setOpen(false); return }
+        setSaving(true)
+        try {
+            const res = await fetch('/api/admin/users', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orgId, plan: newPlan }),
+            })
+            if (!res.ok) throw new Error('Failed')
+            onChanged()
+        } catch {
+            alert('Failed to update plan')
+        } finally {
+            setSaving(false)
+            setOpen(false)
+        }
+    }
+
+    return (
+        <div ref={ref} className="relative inline-block">
+            <button
+                onClick={() => setOpen(!open)}
+                disabled={saving}
+                className="inline-block text-xs font-medium px-2 py-0.5 rounded cursor-pointer hover:ring-1 hover:ring-white/20 transition-all"
+                style={{
+                    backgroundColor: `${PLAN_COLORS[plan] ?? '#6b7280'}20`,
+                    color: PLAN_COLORS[plan] ?? '#6b7280',
+                }}
+                title="Click to change plan"
+            >
+                {saving ? '...' : plan}
+            </button>
+            {open && (
+                <div className="absolute z-50 mt-1 left-0 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-xl py-1 min-w-[140px]">
+                    {PLANS.map((p) => (
+                        <button
+                            key={p}
+                            onClick={() => changePlan(p)}
+                            className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 hover:bg-white/[0.06] transition-colors ${
+                                p === plan ? 'text-white font-semibold' : 'text-muted'
+                            }`}
+                        >
+                            <span
+                                className="inline-block w-2 h-2 rounded-full"
+                                style={{ backgroundColor: PLAN_COLORS[p] }}
+                            />
+                            {p}
+                            {p === plan && <span className="ml-auto text-[10px] text-muted">current</span>}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    )
+}
+
 export default function AdminUsersPage() {
     const [page, setPage] = useState(1)
     const [search, setSearch] = useState('')
@@ -63,6 +138,8 @@ export default function AdminUsersPage() {
         }, 300)
         return () => clearTimeout(id)
     }, [])
+
+    const queryClient = useQueryClient()
 
     const { data, isLoading } = useQuery<UsersResponse>({
         queryKey: ['admin-users', page, debouncedSearch, sortBy, sortDir],
@@ -222,15 +299,15 @@ export default function AdminUsersPage() {
                                                 />
                                             </td>
                                             <td className="px-4 py-3">
-                                                <span
-                                                    className="inline-block text-xs font-medium px-2 py-0.5 rounded"
-                                                    style={{
-                                                        backgroundColor: `${PLAN_COLORS[plan]}20`,
-                                                        color: PLAN_COLORS[plan],
-                                                    }}
-                                                >
-                                                    {plan}
-                                                </span>
+                                                {membership?.org?.id ? (
+                                                    <PlanBadge
+                                                        plan={plan}
+                                                        orgId={membership.org.id}
+                                                        onChanged={() => queryClient.invalidateQueries({ queryKey: ['admin-users'] })}
+                                                    />
+                                                ) : (
+                                                    <span className="text-xs text-muted">—</span>
+                                                )}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-muted">
                                                 {membership?.role ?? '—'}

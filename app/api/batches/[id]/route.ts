@@ -7,15 +7,16 @@ import { db } from '@/lib/db'
 // ═══════════════════════════════════════════════════════════════════════════
 export async function GET(
     _req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const batch = await db.hashBatch.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id, orgId: session.orgId },
         include: {
             freezeDryer: { select: { name: true, callsign: true, serial: true } },
             rosinBatches: {
@@ -41,8 +42,9 @@ export async function GET(
 // ═══════════════════════════════════════════════════════════════════════════
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -50,7 +52,7 @@ export async function PATCH(
 
     // Verify ownership
     const existing = await db.hashBatch.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id, orgId: session.orgId },
         select: { id: true },
     })
 
@@ -84,7 +86,7 @@ export async function PATCH(
         updateData.yield25u !== undefined
     ) {
         const merged = await db.hashBatch.findFirst({
-            where: { id: params.id },
+            where: { id: id },
             select: {
                 yield160u: true,
                 yield120u: true,
@@ -116,7 +118,7 @@ export async function PATCH(
     }
 
     const batch = await db.hashBatch.update({
-        where: { id: params.id },
+        where: { id: id },
         data: updateData,
     })
 
@@ -128,8 +130,9 @@ export async function PATCH(
 // ═══════════════════════════════════════════════════════════════════════════
 export async function DELETE(
     _req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -137,7 +140,7 @@ export async function DELETE(
 
     // Verify ownership
     const existing = await db.hashBatch.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id: id, orgId: session.orgId },
         select: { id: true },
     })
 
@@ -147,7 +150,7 @@ export async function DELETE(
 
     // Soft delete: set status to ARCHIVED
     const batch = await db.hashBatch.update({
-        where: { id: params.id },
+        where: { id: id },
         data: { status: 'ARCHIVED' },
     })
 

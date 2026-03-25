@@ -14,19 +14,43 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = req.nextUrl
+    const search = searchParams.get('search')
     const strain = searchParams.get('strain')
     const status = searchParams.get('status')
+    const dateFrom = searchParams.get('dateFrom')
+    const dateTo = searchParams.get('dateTo')
+    const sort = searchParams.get('sort') === 'asc' ? 'asc' as const : 'desc' as const
     const limit = parseInt(searchParams.get('limit') ?? '50')
     const offset = parseInt(searchParams.get('offset') ?? '0')
 
     const where: Record<string, unknown> = { orgId: session.orgId }
-    if (strain) where.strain = { contains: strain, mode: 'insensitive' }
+
+    // search takes precedence over strain — broad text search across key fields
+    if (search) {
+        where.OR = [
+            { strain: { contains: search, mode: 'insensitive' } },
+            { batchNumber: { contains: search, mode: 'insensitive' } },
+            { farmSource: { contains: search, mode: 'insensitive' } },
+            { processedBy: { contains: search, mode: 'insensitive' } },
+        ]
+    } else if (strain) {
+        where.strain = { contains: strain, mode: 'insensitive' }
+    }
+
     if (status) where.status = status
+
+    // Date range filtering on washDate
+    if (dateFrom || dateTo) {
+        const washDateFilter: Record<string, Date> = {}
+        if (dateFrom) washDateFilter.gte = new Date(dateFrom)
+        if (dateTo) washDateFilter.lte = new Date(dateTo)
+        where.washDate = washDateFilter
+    }
 
     const [batches, total] = await Promise.all([
         db.hashBatch.findMany({
             where,
-            orderBy: { washDate: 'desc' },
+            orderBy: { washDate: sort },
             take: limit,
             skip: offset,
             include: {

@@ -17,17 +17,53 @@ const createSchema = z.object({
     verifiedBy: z.string().optional(),
 })
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     const session = await auth()
     if (!session?.orgId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const batches = await db.pressedBatch.findMany({
-        where: { orgId: session.orgId },
-        orderBy: { pressDate: 'desc' },
-        include: { sourceHashBatch: { select: { strain: true, batchNumber: true } } },
-    })
+    const { searchParams } = req.nextUrl
+    const search = searchParams.get('search')
+    const status = searchParams.get('status')
+    const dateFrom = searchParams.get('dateFrom')
+    const dateTo = searchParams.get('dateTo')
+    const sort = searchParams.get('sort') === 'asc' ? 'asc' as const : 'desc' as const
+    const limit = parseInt(searchParams.get('limit') ?? '50')
+    const offset = parseInt(searchParams.get('offset') ?? '0')
 
-    return NextResponse.json({ data: batches })
+    const where: Record<string, unknown> = { orgId: session.orgId }
+
+    // Broad text search across key fields
+    if (search) {
+        where.OR = [
+            { strain: { contains: search, mode: 'insensitive' } },
+            { batchNumber: { contains: search, mode: 'insensitive' } },
+            { processedBy: { contains: search, mode: 'insensitive' } },
+            { notes: { contains: search, mode: 'insensitive' } },
+        ]
+    }
+
+    if (status) where.status = status
+
+    // Date range filtering on pressDate
+    if (dateFrom || dateTo) {
+        const pressDateFilter: Record<string, Date> = {}
+        if (dateFrom) pressDateFilter.gte = new Date(dateFrom)
+        if (dateTo) pressDateFilter.lte = new Date(dateTo)
+        where.pressDate = pressDateFilter
+    }
+
+    const [batches, total] = await Promise.all([
+        db.pressedBatch.findMany({
+            where,
+            orderBy: { pressDate: sort },
+            take: limit,
+            skip: offset,
+            include: { sourceHashBatch: { select: { strain: true, batchNumber: true } } },
+        }),
+        db.pressedBatch.count({ where }),
+    ])
+
+    return NextResponse.json({ data: batches, total, limit, offset })
 }
 
 export async function POST(req: NextRequest) {

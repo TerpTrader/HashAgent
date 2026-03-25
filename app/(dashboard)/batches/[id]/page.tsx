@@ -5,7 +5,8 @@ import { db } from '@/lib/db'
 import { formatWeight, formatPercent, formatTemp } from '@/lib/utils'
 import { MicronYieldTable } from '@/components/batches/MicronYieldTable'
 import { cn } from '@/lib/utils'
-import { ChevronLeft, Pencil, FileDown, Archive } from 'lucide-react'
+import { ChevronLeft, Pencil, Archive } from 'lucide-react'
+import { ExportActions } from '@/components/shared/ExportActions'
 
 export const metadata = {
     title: 'Batch Detail',
@@ -30,13 +31,14 @@ const TIER_LABELS: Record<string, string> = {
 export default async function BatchDetailPage({
     params,
 }: {
-    params: { id: string }
+    params: Promise<{ id: string }>
 }) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) redirect('/login')
 
     const batch = await db.hashBatch.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id, orgId: session.orgId },
         include: {
             freezeDryer: { select: { name: true, callsign: true } },
         },
@@ -93,15 +95,10 @@ export default async function BatchDetailPage({
                         <Pencil className="h-3.5 w-3.5" />
                         Edit
                     </Link>
-                    <button
-                        type="button"
-                        disabled
-                        title="PDF export coming soon"
-                        className="flex items-center gap-1.5 rounded-lg bg-white/5 px-3 py-2 text-sm font-medium text-muted cursor-not-allowed opacity-50 transition-colors"
-                    >
-                        <FileDown className="h-3.5 w-3.5" />
-                        Export PDF
-                    </button>
+                    <ExportActions
+                        pdfUrl={`/api/batches/${batch.id}/pdf`}
+                        filename={`${batch.batchNumber}-${batch.strain.replace(/\s+/g, '_')}.pdf`}
+                    />
                     <button
                         type="button"
                         disabled

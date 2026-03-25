@@ -32,6 +32,9 @@ const DASHBOARD_ROUTES = [
     '/settings',
 ]
 
+// Admin routes — require auth + admin email (enforced in admin layout, not middleware)
+const ADMIN_ROUTES = ['/admin']
+
 export default async function middleware(req: NextRequest) {
     const { pathname } = req.nextUrl
 
@@ -48,6 +51,17 @@ export default async function middleware(req: NextRequest) {
     if (PUBLIC_ROUTES.has(pathname)) {
         if (isAuthenticated && isEmailVerified && (pathname === '/login' || pathname === '/register' || pathname === '/')) {
             return NextResponse.redirect(new URL('/dashboard', req.url))
+        }
+        return NextResponse.next()
+    }
+
+    // Admin routes: require auth (admin email check happens in admin layout)
+    const isAdminRoute = ADMIN_ROUTES.some(route => pathname.startsWith(route))
+    if (isAdminRoute) {
+        if (!isAuthenticated) {
+            const loginUrl = new URL('/login', req.url)
+            loginUrl.searchParams.set('callbackUrl', pathname)
+            return NextResponse.redirect(loginUrl)
         }
         return NextResponse.next()
     }

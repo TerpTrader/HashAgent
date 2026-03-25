@@ -4,10 +4,14 @@ import { Toaster } from '@/components/ui/Toaster'
 
 export const metadata: Metadata = {
     title: {
-        default: 'Hash Agent',
+        default: 'Hash Agent — AI-Powered Hash Lab Management',
         template: '%s | Hash Agent',
     },
-    description: 'AI-first concentrate manufacturing & extract processing management',
+    description: 'AI-powered batch tracking, yield analytics, and equipment monitoring for solventless concentrate manufacturers.',
+    icons: {
+        icon: '/logo.png',
+        apple: '/logo.png',
+    },
 }
 
 export default function RootLayout({

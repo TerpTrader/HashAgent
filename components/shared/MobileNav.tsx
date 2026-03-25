@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { signOut } from 'next-auth/react'
 import { NavLink } from '@/components/shared/NavLink'
 
 type Props = {
@@ -27,6 +28,9 @@ const NAV_ITEMS = [
         // AI Assistant moved to bottom tab bar and sidebar glow button
         { href: '/analytics', icon: 'analytics', label: 'Analytics' },
         { href: '/compliance', icon: 'verified', label: 'Compliance' },
+    ]},
+    { section: 'Account', items: [
+        { href: '/settings', icon: 'settings', label: 'Settings' },
     ]},
 ]
 
@@ -102,10 +106,24 @@ export function MobileNav({ userName, orgName, role, plan }: Props) {
                     ))}
                 </nav>
 
-                {/* User info */}
-                <div className="border-t border-white/5 px-4 py-3">
-                    <p className="text-sm font-medium text-white truncate">{userName}</p>
-                    <p className="text-xs text-muted truncate">{orgName} &middot; {role}</p>
+                {/* User info + Sign out */}
+                <div className="border-t border-white/5 px-4 py-3 space-y-3">
+                    <div>
+                        <p className="text-sm font-medium text-white truncate">{userName}</p>
+                        <p className="text-xs text-muted truncate">{orgName} &middot; {role}</p>
+                    </div>
+                    <button
+                        onClick={() => signOut({ callbackUrl: '/login' })}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                    >
+                        <span
+                            className="material-symbols-outlined text-[18px]"
+                            style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}
+                        >
+                            logout
+                        </span>
+                        Sign out
+                    </button>
                 </div>
             </div>
         </>

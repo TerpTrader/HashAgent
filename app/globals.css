@@ -2,6 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════
+   SCROLL REVEAL SYSTEM
+   ═══════════════════════════════════════════════════════════════ */
+
+.scroll-reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.scroll-reveal.revealed {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Stagger children */
+.reveal-children.revealed > * {
+    opacity: 0;
+    transform: translateY(16px);
+    animation: revealChild 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.reveal-children.revealed > *:nth-child(1) { animation-delay: 0ms; }
+.reveal-children.revealed > *:nth-child(2) { animation-delay: 80ms; }
+.reveal-children.revealed > *:nth-child(3) { animation-delay: 160ms; }
+.reveal-children.revealed > *:nth-child(4) { animation-delay: 240ms; }
+.reveal-children.revealed > *:nth-child(5) { animation-delay: 320ms; }
+.reveal-children.revealed > *:nth-child(6) { animation-delay: 400ms; }
+.reveal-children.revealed > *:nth-child(7) { animation-delay: 480ms; }
+.reveal-children.revealed > *:nth-child(8) { animation-delay: 560ms; }
+
+@keyframes revealChild {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   STAGGER FADE-IN (dashboard cards)
+   ═══════════════════════════════════════════════════════════════ */
+
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -20,6 +63,136 @@
     }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   COUNT-UP ANIMATION
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes countPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GRADIENT TEXT
+   ═══════════════════════════════════════════════════════════════ */
+
+.gradient-text {
+    background: linear-gradient(135deg, #14b8a6 0%, #2dd4bf 50%, #5eead4 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GLASS EFFECTS
+   ═══════════════════════════════════════════════════════════════ */
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    backdrop-filter: blur(12px);
+}
+
+.glass-card-hover:hover {
+    border-color: rgba(20, 184, 166, 0.2);
+    box-shadow: 0 0 40px rgba(20, 184, 166, 0.06);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GLOW EFFECTS
+   ═══════════════════════════════════════════════════════════════ */
+
+.glow-teal {
+    box-shadow: 0 0 80px rgba(20, 184, 166, 0.08);
+}
+
+.glow-teal-strong {
+    box-shadow: 0 0 60px rgba(20, 184, 166, 0.15),
+                0 0 120px rgba(20, 184, 166, 0.05);
+}
+
+.glow-border {
+    border: 1px solid rgba(20, 184, 166, 0.15);
+    box-shadow: 0 0 40px rgba(20, 184, 166, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOCKUP FRAME
+   ═══════════════════════════════════════════════════════════════ */
+
+.mockup-frame {
+    background: #0a0f0f;
+    border: 1px solid rgba(20, 184, 166, 0.15);
+    border-radius: 16px;
+    box-shadow: 0 0 80px rgba(20, 184, 166, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    overflow: hidden;
+}
+
+/* Image fade mask */
+.image-fade-bottom {
+    mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DROPDOWN / MOBILE MENU
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes dropdownIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.dropdown-enter {
+    animation: dropdownIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SHIMMER (loading)
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.shimmer {
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.03) 50%,
+        rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FLOAT ANIMATION (hero mockup)
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+}
+
+.animate-float {
+    animation: float 6s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BASE STYLES
+   ═══════════════════════════════════════════════════════════════ */
+
 @layer base {
     :root {
         --background: 0 0% 2%;
@@ -31,7 +204,10 @@
     }
 }
 
-/* Custom scrollbar for dark theme */
+/* ═══════════════════════════════════════════════════════════════
+   SCROLLBAR
+   ═══════════════════════════════════════════════════════════════ */
+
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -40,19 +216,24 @@
     background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(20, 184, 166, 0.3);
     border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(20, 184, 166, 0.5);
 }
 
-/* Focus ring for accessibility */
+/* Selection */
+::selection {
+    background-color: rgba(20, 184, 166, 0.25);
+}
+
+/* Focus ring */
 *:focus-visible {
     @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
 }
 
-/* Hide scrollbar while preserving scroll functionality */
+/* Hide scrollbar */
 .scrollbar-none::-webkit-scrollbar {
     display: none;
 }

@@ -7,15 +7,16 @@ import { db } from '@/lib/db'
 // ═══════════════════════════════════════════════════════════════════════════
 export async function GET(
     _req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const log = await db.haEquipmentMaintenanceLog.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id, orgId: session.orgId },
     })
 
     if (!log) {
@@ -30,8 +31,9 @@ export async function GET(
 // ═══════════════════════════════════════════════════════════════════════════
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -39,7 +41,7 @@ export async function PATCH(
 
     // Verify ownership
     const existing = await db.haEquipmentMaintenanceLog.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id, orgId: session.orgId },
         select: { id: true },
     })
 
@@ -61,7 +63,7 @@ export async function PATCH(
     }
 
     const log = await db.haEquipmentMaintenanceLog.update({
-        where: { id: params.id },
+        where: { id },
         data: updateData,
     })
 
@@ -73,8 +75,9 @@ export async function PATCH(
 // ═══════════════════════════════════════════════════════════════════════════
 export async function DELETE(
     _req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -82,7 +85,7 @@ export async function DELETE(
 
     // Verify ownership
     const existing = await db.haEquipmentMaintenanceLog.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id, orgId: session.orgId },
         select: { id: true },
     })
 
@@ -90,7 +93,7 @@ export async function DELETE(
         return NextResponse.json({ error: 'Maintenance log not found' }, { status: 404 })
     }
 
-    await db.haEquipmentMaintenanceLog.delete({ where: { id: params.id } })
+    await db.haEquipmentMaintenanceLog.delete({ where: { id } })
 
     return NextResponse.json({ data: { deleted: true } })
 }

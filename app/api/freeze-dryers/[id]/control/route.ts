@@ -17,8 +17,9 @@ const commandSchema = z.object({
 
 export async function POST(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -37,7 +38,7 @@ export async function POST(
 
     // Verify ownership
     const dryer = await db.freezeDryer.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id, orgId: session.orgId },
     })
     if (!dryer) {
         return NextResponse.json({ error: 'Freeze dryer not found' }, { status: 404 })
@@ -54,7 +55,7 @@ export async function POST(
     switch (command) {
         case 'start_batch':
             await db.freezeDryer.update({
-                where: { id: params.id },
+                where: { id },
                 data: {
                     currentPhase: 'FREEZING',
                     batchStartedAt: new Date(),
@@ -65,7 +66,7 @@ export async function POST(
 
         case 'stop_batch':
             await db.freezeDryer.update({
-                where: { id: params.id },
+                where: { id },
                 data: {
                     currentPhase: 'IDLE',
                     batchStartedAt: null,
@@ -82,7 +83,7 @@ export async function POST(
             // Clear error alerts for this machine
             await db.haAlert.updateMany({
                 where: {
-                    freezeDryerId: params.id,
+                    freezeDryerId: id,
                     category: 'ERROR',
                     status: 'ACTIVE',
                 },
@@ -100,7 +101,7 @@ export async function POST(
         data: {
             orgId: session.orgId,
             category: 'FREEZE_DRYER',
-            equipmentId: params.id,
+            equipmentId: id,
             equipmentType: 'freeze_dryer',
             equipmentName: dryer.name,
             date: new Date(),

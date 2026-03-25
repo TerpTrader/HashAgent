@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { redirect, notFound } from 'next/navigation'
-import { ArrowLeft, Calendar, Hash, Scale, FileText, UserCheck } from 'lucide-react'
+import { ArrowLeft, Calendar, Hash, Scale, FileText, UserCheck, Pencil } from 'lucide-react'
+import { ExportActions } from '@/components/shared/ExportActions'
 import { formatWeight, formatPercent } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import type { PressedBatchStatus } from '@/types'
@@ -57,20 +58,36 @@ export default async function PressedDetailPage({
             </Link>
 
             {/* Header */}
-            <div className="mt-4 flex items-start justify-between">
+            <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                    <h1 className="text-2xl font-semibold text-white">{displayStrain}</h1>
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-2xl font-semibold text-white">{displayStrain}</h1>
+                        <span
+                            className={cn(
+                                'inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium',
+                                statusStyle.bg,
+                                statusStyle.text
+                            )}
+                        >
+                            {statusStyle.label}
+                        </span>
+                    </div>
                     <p className="mt-0.5 text-sm font-mono text-muted">{batch.batchNumber}</p>
                 </div>
-                <span
-                    className={cn(
-                        'inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium',
-                        statusStyle.bg,
-                        statusStyle.text
-                    )}
-                >
-                    {statusStyle.label}
-                </span>
+
+                <div className="flex items-center gap-2">
+                    <Link
+                        href={`/pressed/${id}/edit`}
+                        className="flex items-center gap-1.5 rounded-lg bg-white/5 px-3 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors"
+                    >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit
+                    </Link>
+                    <ExportActions
+                        pdfUrl={`/api/pressed/${id}/pdf`}
+                        filename={`${batch.batchNumber}-${displayStrain.replace(/\s+/g, '_')}-pressed.pdf`}
+                    />
+                </div>
             </div>
 
             {/* Metrics Grid */}

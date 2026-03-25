@@ -190,6 +190,42 @@ export const toolDeclarations: FunctionDeclaration[] = [
             required: ['imageBase64'],
         },
     },
+    {
+        name: 'search_batches',
+        description: 'Full-text search across all batch types (hash, rosin, pressed) by strain, batch number, farm source, or processor name',
+        parameters: {
+            type: SchemaType.OBJECT,
+            properties: {
+                query: { type: SchemaType.STRING, description: 'Search query text' },
+                batchType: { type: SchemaType.STRING, description: 'Filter to specific type: hash, rosin, pressed, or all (default all)' },
+                limit: { type: SchemaType.NUMBER, description: 'Max results per type (default 5)' },
+            },
+            required: ['query'],
+        },
+    },
+    {
+        name: 'export_batch_pdf',
+        description: 'Get a PDF download URL for a batch record',
+        parameters: {
+            type: SchemaType.OBJECT,
+            properties: {
+                batchId: { type: SchemaType.STRING, description: 'The batch ID' },
+                batchType: { type: SchemaType.STRING, description: 'Type: hash, rosin, or pressed' },
+            },
+            required: ['batchId', 'batchType'],
+        },
+    },
+    {
+        name: 'compare_batches',
+        description: 'Compare 2-5 hash batches side-by-side on yield, quality, and micron distribution',
+        parameters: {
+            type: SchemaType.OBJECT,
+            properties: {
+                batchIds: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: 'Array of 2-5 batch IDs to compare' },
+            },
+            required: ['batchIds'],
+        },
+    },
 ]
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -646,6 +682,235 @@ Example: {"weight": 2847.3, "unit": "g", "confidence": "high"}`
         } catch {
             return JSON.stringify({ rawText: result, error: 'Could not parse structured weight data' })
         }
+    },
+
+    // ── 15. Search Batches ────────────────────────────────────────────────
+    async search_batches(orgId, args) {
+        const query = args.query as string
+        const batchType = ((args.batchType as string) ?? 'all').toLowerCase()
+        const limit = (args.limit as number) ?? 5
+
+        const textFilter = { contains: query, mode: 'insensitive' as const }
+
+        const searchHash = batchType === 'all' || batchType === 'hash'
+        const searchRosin = batchType === 'all' || batchType === 'rosin'
+        const searchPressed = batchType === 'all' || batchType === 'pressed'
+
+        const [hashBatches, rosinBatches, pressedBatches] = await Promise.all([
+            searchHash
+                ? db.hashBatch.findMany({
+                    where: {
+                        orgId,
+                        OR: [
+                            { strain: textFilter },
+                            { batchNumber: textFilter },
+                            { farmSource: textFilter },
+                            { processedBy: textFilter },
+                        ],
+                    },
+                    orderBy: { washDate: 'desc' },
+                    take: limit,
+                    select: {
+                        id: true,
+                        batchNumber: true,
+                        strain: true,
+                        status: true,
+                        washDate: true,
+                        rawMaterialWeightG: true,
+                        totalYieldG: true,
+                        yieldPct: true,
+                        qualityTier: true,
+                        farmSource: true,
+                        processedBy: true,
+                    },
+                })
+                : Promise.resolve([]),
+            searchRosin
+                ? db.rosinBatch.findMany({
+                    where: {
+                        orgId,
+                        OR: [
+                            { strain: textFilter },
+                            { batchNumber: textFilter },
+                            { companyProcessedFor: textFilter },
+                            { rosinProcessedBy: textFilter },
+                        ],
+                    },
+                    orderBy: { processDate: 'desc' },
+                    take: limit,
+                    select: {
+                        id: true,
+                        batchNumber: true,
+                        strain: true,
+                        status: true,
+                        processDate: true,
+                        productType: true,
+                        totalHashWeightG: true,
+                        rosinYieldWeightG: true,
+                        rosinYieldPct: true,
+                        companyProcessedFor: true,
+                        rosinProcessedBy: true,
+                    },
+                })
+                : Promise.resolve([]),
+            searchPressed
+                ? db.pressedBatch.findMany({
+                    where: {
+                        orgId,
+                        OR: [
+                            { strain: textFilter },
+                            { batchNumber: textFilter },
+                            { processedBy: textFilter },
+                        ],
+                    },
+                    orderBy: { pressDate: 'desc' },
+                    take: limit,
+                    select: {
+                        id: true,
+                        batchNumber: true,
+                        strain: true,
+                        status: true,
+                        pressDate: true,
+                        inputWeightG: true,
+                        finalWeightG: true,
+                        processingLossPct: true,
+                        processedBy: true,
+                    },
+                })
+                : Promise.resolve([]),
+        ])
+
+        return JSON.stringify({
+            query,
+            hashBatches: { results: hashBatches, count: hashBatches.length },
+            rosinBatches: { results: rosinBatches, count: rosinBatches.length },
+            pressedBatches: { results: pressedBatches, count: pressedBatches.length },
+            totalResults: hashBatches.length + rosinBatches.length + pressedBatches.length,
+        })
+    },
+
+    // ── 16. Export Batch PDF ──────────────────────────────────────────────
+    async export_batch_pdf(orgId, args) {
+        const batchId = args.batchId as string
+        const batchType = (args.batchType as string).toLowerCase()
+
+        // Map batchType to the correct db model and API path
+        const typeConfig: Record<string, { model: 'hashBatch' | 'rosinBatch' | 'pressedBatch'; apiPath: string }> = {
+            hash: { model: 'hashBatch', apiPath: 'batches' },
+            rosin: { model: 'rosinBatch', apiPath: 'rosin' },
+            pressed: { model: 'pressedBatch', apiPath: 'pressed' },
+        }
+
+        const config = typeConfig[batchType]
+        if (!config) {
+            return JSON.stringify({ error: `Invalid batch type: ${batchType}. Must be hash, rosin, or pressed.` })
+        }
+
+        // Use explicit queries to avoid TypeScript dynamic access issues
+        let batch: { id: string; batchNumber: string } | null = null
+        if (batchType === 'hash') {
+            batch = await db.hashBatch.findFirst({ where: { id: batchId, orgId }, select: { id: true, batchNumber: true } })
+        } else if (batchType === 'rosin') {
+            batch = await db.rosinBatch.findFirst({ where: { id: batchId, orgId }, select: { id: true, batchNumber: true } })
+        } else if (batchType === 'pressed') {
+            batch = await db.pressedBatch.findFirst({ where: { id: batchId, orgId }, select: { id: true, batchNumber: true } })
+        }
+
+        if (!batch) {
+            return JSON.stringify({ error: `${batchType} batch not found with ID: ${batchId}` })
+        }
+
+        const filename = `${batch.batchNumber}-report.pdf`
+
+        return JSON.stringify({
+            success: true,
+            downloadUrl: `/api/${config.apiPath}/${batchId}/pdf`,
+            batchNumber: batch.batchNumber,
+            filename,
+        })
+    },
+
+    // ── 17. Compare Batches ──────────────────────────────────────────────
+    async compare_batches(orgId, args) {
+        const batchIds = args.batchIds as string[]
+
+        if (batchIds.length < 2 || batchIds.length > 5) {
+            return JSON.stringify({ error: 'Provide between 2 and 5 batch IDs to compare' })
+        }
+
+        const batches = await db.hashBatch.findMany({
+            where: { id: { in: batchIds }, orgId },
+            select: {
+                id: true,
+                batchNumber: true,
+                strain: true,
+                rawMaterialWeightG: true,
+                totalYieldG: true,
+                yieldPct: true,
+                qualityTier: true,
+                yield160u: true,
+                yield120u: true,
+                yield90u: true,
+                yield73u: true,
+                yield45u: true,
+                washDate: true,
+                materialState: true,
+                materialGrade: true,
+                farmSource: true,
+            },
+        })
+
+        if (batches.length < 2) {
+            return JSON.stringify({ error: `Only found ${batches.length} matching batch(es). Need at least 2 to compare.` })
+        }
+
+        // Build individual batch metrics with micron breakdown
+        const batchMetrics = batches.map(b => ({
+            batchNumber: b.batchNumber,
+            strain: b.strain,
+            farmSource: b.farmSource,
+            materialState: b.materialState,
+            materialGrade: b.materialGrade,
+            washDate: b.washDate,
+            rawMaterialWeightG: b.rawMaterialWeightG,
+            totalYieldG: b.totalYieldG,
+            yieldPct: b.yieldPct != null ? Math.round(b.yieldPct * 100) / 100 : null,
+            qualityTier: b.qualityTier,
+            micronBreakdown: {
+                '160u': b.yield160u ?? 0,
+                '120u': b.yield120u ?? 0,
+                '90u': b.yield90u ?? 0,
+                '73u': b.yield73u ?? 0,
+                '45u': b.yield45u ?? 0,
+            },
+        }))
+
+        // Compute comparison summary
+        const yieldPcts = batches
+            .map(b => b.yieldPct)
+            .filter((p): p is number => p != null)
+
+        const bestYield = yieldPcts.length > 0 ? Math.max(...yieldPcts) : null
+        const worstYield = yieldPcts.length > 0 ? Math.min(...yieldPcts) : null
+        const avgYield = yieldPcts.length > 0
+            ? Math.round((yieldPcts.reduce((a, b) => a + b, 0) / yieldPcts.length) * 100) / 100
+            : null
+
+        return JSON.stringify({
+            batchCount: batches.length,
+            batches: batchMetrics,
+            comparison: {
+                bestYieldPct: bestYield != null ? Math.round(bestYield * 100) / 100 : null,
+                worstYieldPct: worstYield != null ? Math.round(worstYield * 100) / 100 : null,
+                avgYieldPct: avgYield,
+                bestBatch: bestYield != null
+                    ? batches.find(b => b.yieldPct === bestYield)?.batchNumber ?? null
+                    : null,
+                worstBatch: worstYield != null
+                    ? batches.find(b => b.yieldPct === worstYield)?.batchNumber ?? null
+                    : null,
+            },
+        })
     },
 }
 

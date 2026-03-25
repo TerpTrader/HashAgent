@@ -8,8 +8,9 @@ import { db } from '@/lib/db'
 // ═══════════════════════════════════════════════════════════════════════════
 export async function GET(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -21,7 +22,7 @@ export async function GET(
 
     // Verify ownership
     const dryer = await db.freezeDryer.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id, orgId: session.orgId },
         select: { id: true },
     })
     if (!dryer) {
@@ -30,7 +31,7 @@ export async function GET(
 
     const telemetry = await db.freezeDryerTelemetry.findMany({
         where: {
-            freezeDryerId: params.id,
+            freezeDryerId: id,
             timestamp: { gte: since },
         },
         orderBy: { timestamp: 'asc' },
@@ -56,8 +57,9 @@ export async function GET(
 // ═══════════════════════════════════════════════════════════════════════════
 export async function POST(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     // This endpoint is called by the MQTT bridge service or Raspberry Pi
     // Auth via API key header (not user session)
     const apiKey = req.headers.get('x-api-key')
@@ -70,7 +72,7 @@ export async function POST(
     // Insert telemetry reading
     const reading = await db.freezeDryerTelemetry.create({
         data: {
-            freezeDryerId: params.id,
+            freezeDryerId: id,
             temperatureF: body.temperatureF ?? null,
             pressureMt: body.pressureMt ?? null,
             phase: body.phase ?? null,
@@ -85,7 +87,7 @@ export async function POST(
 
     // Update freeze dryer current state
     await db.freezeDryer.update({
-        where: { id: params.id },
+        where: { id },
         data: {
             isOnline: true,
             lastSeenAt: new Date(),

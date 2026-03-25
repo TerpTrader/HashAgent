@@ -7,15 +7,16 @@ import { db } from '@/lib/db'
 // ═══════════════════════════════════════════════════════════════════════════
 export async function GET(
     _req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const batch = await db.rosinBatch.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id: id, orgId: session.orgId },
         include: {
             sourceHashBatch: {
                 select: {
@@ -44,8 +45,9 @@ export async function GET(
 // ═══════════════════════════════════════════════════════════════════════════
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -53,7 +55,7 @@ export async function PATCH(
 
     // Verify batch exists and belongs to org
     const existing = await db.rosinBatch.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id: id, orgId: session.orgId },
     })
     if (!existing) {
         return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
@@ -82,7 +84,7 @@ export async function PATCH(
     if (body.processDate) body.processDate = new Date(body.processDate)
 
     const batch = await db.rosinBatch.update({
-        where: { id: params.id },
+        where: { id: id },
         data: body,
         include: {
             sourceHashBatch: {
@@ -99,22 +101,23 @@ export async function PATCH(
 // ═══════════════════════════════════════════════════════════════════════════
 export async function DELETE(
     _req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const existing = await db.rosinBatch.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id: id, orgId: session.orgId },
     })
     if (!existing) {
         return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
     }
 
     await db.rosinBatch.update({
-        where: { id: params.id },
+        where: { id: id },
         data: { status: 'ARCHIVED' },
     })
 

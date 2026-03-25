@@ -22,8 +22,9 @@ function getEquipmentType(searchParams: URLSearchParams) {
 // ═══════════════════════════════════════════════════════════════════════════
 export async function GET(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -36,7 +37,7 @@ export async function GET(
 
     if (equipmentType === 'freeze_dryer') {
         const dryer = await db.freezeDryer.findFirst({
-            where: { id: params.id, orgId: session.orgId },
+            where: { id: id, orgId: session.orgId },
         })
         if (!dryer) {
             return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
@@ -45,7 +46,7 @@ export async function GET(
     }
 
     const system = await db.waterFiltrationSystem.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id: id, orgId: session.orgId },
     })
     if (!system) {
         return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
@@ -58,8 +59,9 @@ export async function GET(
 // ═══════════════════════════════════════════════════════════════════════════
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -78,7 +80,7 @@ export async function PATCH(
     if (equipmentType === 'freeze_dryer') {
         // Verify ownership
         const existing = await db.freezeDryer.findFirst({
-            where: { id: params.id, orgId: session.orgId },
+            where: { id: id, orgId: session.orgId },
             select: { id: true },
         })
         if (!existing) {
@@ -86,7 +88,7 @@ export async function PATCH(
         }
 
         const dryer = await db.freezeDryer.update({
-            where: { id: params.id },
+            where: { id: id },
             data: updateData,
         })
         return NextResponse.json({ data: { ...dryer, type: 'freeze_dryer' } })
@@ -94,7 +96,7 @@ export async function PATCH(
 
     // Water filtration
     const existing = await db.waterFiltrationSystem.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id: id, orgId: session.orgId },
         select: { id: true },
     })
     if (!existing) {
@@ -113,7 +115,7 @@ export async function PATCH(
     }
 
     const system = await db.waterFiltrationSystem.update({
-        where: { id: params.id },
+        where: { id: id },
         data: updateData,
     })
     return NextResponse.json({ data: { ...system, type: 'water_filtration' } })
@@ -124,8 +126,9 @@ export async function PATCH(
 // ═══════════════════════════════════════════════════════════════════════════
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -138,25 +141,25 @@ export async function DELETE(
 
     if (equipmentType === 'freeze_dryer') {
         const existing = await db.freezeDryer.findFirst({
-            where: { id: params.id, orgId: session.orgId },
+            where: { id: id, orgId: session.orgId },
             select: { id: true },
         })
         if (!existing) {
             return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
         }
 
-        await db.freezeDryer.delete({ where: { id: params.id } })
+        await db.freezeDryer.delete({ where: { id: id } })
         return NextResponse.json({ data: { deleted: true } })
     }
 
     const existing = await db.waterFiltrationSystem.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id: id, orgId: session.orgId },
         select: { id: true },
     })
     if (!existing) {
         return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
     }
 
-    await db.waterFiltrationSystem.delete({ where: { id: params.id } })
+    await db.waterFiltrationSystem.delete({ where: { id: id } })
     return NextResponse.json({ data: { deleted: true } })
 }

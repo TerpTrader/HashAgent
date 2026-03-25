@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { cn, formatWeight, formatPercent } from '@/lib/utils'
-import { Loader2, ArrowLeft } from 'lucide-react'
+import { Loader2, ArrowLeft, Pencil } from 'lucide-react'
+import { ExportActions } from '@/components/shared/ExportActions'
 
 interface RosinBatchDetail {
     id: string
@@ -149,21 +150,37 @@ export default function RosinDetailPage() {
             </a>
 
             {/* Header */}
-            <div className="flex items-start justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                    <h1 className="text-2xl font-semibold text-white">
-                        {batch.productName ?? batch.strain}
-                    </h1>
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-2xl font-semibold text-white">
+                            {batch.productName ?? batch.strain}
+                        </h1>
+                        <span className={cn(
+                            'rounded-full border px-3 py-1 text-xs font-medium',
+                            statusStyle.className
+                        )}>
+                            {statusStyle.label}
+                        </span>
+                    </div>
                     <p className="mt-1 text-sm text-muted">
                         {batch.batchNumber} &middot; {formattedDate}
                     </p>
                 </div>
-                <span className={cn(
-                    'rounded-full border px-3 py-1 text-xs font-medium',
-                    statusStyle.className
-                )}>
-                    {statusStyle.label}
-                </span>
+
+                <div className="flex items-center gap-2">
+                    <a
+                        href={`/rosin/${batch.id}/edit`}
+                        className="flex items-center gap-1.5 rounded-lg bg-white/5 px-3 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors"
+                    >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit
+                    </a>
+                    <ExportActions
+                        pdfUrl={`/api/rosin/${batch.id}/pdf`}
+                        filename={`${batch.batchNumber}-${batch.strain.replace(/\s+/g, '_')}-rosin.pdf`}
+                    />
+                </div>
             </div>
 
             {/* Yield Hero */}

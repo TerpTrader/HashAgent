@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Send, Camera, Loader2 } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { MarkdownMessage } from './MarkdownMessage'
 
 interface Message {
     id: string
@@ -184,11 +183,7 @@ export function HashAgentChat({ suggestedPrompts }: HashAgentChatProps) {
                             )}
 
                             {msg.role === 'assistant' ? (
-                                <div className="prose prose-invert prose-sm max-w-none [&_p]:mb-2 [&_ul]:mb-2 [&_ol]:mb-2 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_code]:bg-white/10 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_pre]:bg-white/5 [&_pre]:rounded-lg [&_pre]:p-3 [&_table]:text-xs">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                        {msg.content}
-                                    </ReactMarkdown>
-                                </div>
+                                <MarkdownMessage content={msg.content} />
                             ) : (
                                 <p className="whitespace-pre-wrap">{msg.content}</p>
                             )}

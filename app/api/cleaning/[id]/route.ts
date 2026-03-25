@@ -7,15 +7,16 @@ import { db } from '@/lib/db'
 // ═══════════════════════════════════════════════════════════════════════════
 export async function GET(
     _req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const log = await db.haCleaningLog.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id, orgId: session.orgId },
         include: {
             entries: { orderBy: { dayOfWeek: 'asc' } },
         },
@@ -33,8 +34,9 @@ export async function GET(
 // ═══════════════════════════════════════════════════════════════════════════
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -42,7 +44,7 @@ export async function PATCH(
 
     // Verify ownership
     const existing = await db.haCleaningLog.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id, orgId: session.orgId },
         select: { id: true },
     })
 
@@ -63,7 +65,7 @@ export async function PATCH(
     // If entries are provided, replace them (delete existing + create new)
     if (Array.isArray(entries)) {
         await db.haCleaningEntry.deleteMany({
-            where: { cleaningLogId: params.id },
+            where: { cleaningLogId: id },
         })
 
         await db.haCleaningEntry.createMany({
@@ -76,7 +78,7 @@ export async function PATCH(
                 verifiedBy?: string
                 notes?: string
             }) => ({
-                cleaningLogId: params.id,
+                cleaningLogId: id,
                 dayOfWeek: e.dayOfWeek,
                 date: new Date(e.date),
                 equipmentName: e.equipmentName,
@@ -89,7 +91,7 @@ export async function PATCH(
     }
 
     const log = await db.haCleaningLog.update({
-        where: { id: params.id },
+        where: { id },
         data: updateData,
         include: {
             entries: { orderBy: { dayOfWeek: 'asc' } },
@@ -104,8 +106,9 @@ export async function PATCH(
 // ═══════════════════════════════════════════════════════════════════════════
 export async function DELETE(
     _req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     const session = await auth()
     if (!session?.orgId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -113,7 +116,7 @@ export async function DELETE(
 
     // Verify ownership
     const existing = await db.haCleaningLog.findFirst({
-        where: { id: params.id, orgId: session.orgId },
+        where: { id, orgId: session.orgId },
         select: { id: true },
     })
 
@@ -123,7 +126,7 @@ export async function DELETE(
 
     // Entries cascade-delete via Prisma onDelete: Cascade on the relation
     await db.haCleaningLog.delete({
-        where: { id: params.id },
+        where: { id },
     })
 
     return NextResponse.json({ data: { deleted: true } })

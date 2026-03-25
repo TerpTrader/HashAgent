@@ -6,6 +6,8 @@ import { MobileTabBar } from '@/components/shared/MobileTabBar'
 import { DashboardProviders } from '@/components/ai/DashboardProviders'
 import { AINavButton } from '@/components/ai/AINavButton'
 import { NavLink } from '@/components/shared/NavLink'
+import { Logo } from '@/components/shared/Logo'
+import { SignOutButton } from '@/components/shared/SignOutButton'
 
 export default async function DashboardLayout({
     children,
@@ -30,9 +32,7 @@ export default async function DashboardLayout({
                 <aside className="hidden lg:flex lg:flex-col lg:w-sidebar lg:fixed lg:inset-y-0 border-r border-white/5 bg-surface">
                     {/* Logo */}
                     <div className="flex items-center h-topbar px-5 border-b border-white/5">
-                        <Link href="/dashboard" className="flex items-center gap-2">
-                            <span className="text-lg font-semibold text-white">Hash Agent</span>
-                        </Link>
+                        <Logo size="sm" href="/dashboard" />
                         <span className="ml-auto text-xs font-mono text-primary px-1.5 py-0.5 bg-primary/10 rounded">
                             {plan}
                         </span>
@@ -40,6 +40,11 @@ export default async function DashboardLayout({
 
                     {/* Nav */}
                     <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+                        {/* AI button — top of nav, primary entry point */}
+                        <div className="pb-2">
+                            <AINavButton />
+                        </div>
+
                         <NavSection title="Operations">
                             <NavLink href="/dashboard" icon="dashboard">Dashboard</NavLink>
                             <NavLink href="/batches" icon="science">Bubble Hash</NavLink>
@@ -55,17 +60,22 @@ export default async function DashboardLayout({
                         </NavSection>
 
                         <NavSection title="Intelligence">
-                            {/* Teal-glowing AI button — opens popup instead of navigating */}
-                            <AINavButton />
                             <NavLink href="/analytics" icon="analytics">Analytics</NavLink>
                             <NavLink href="/compliance" icon="verified">Compliance</NavLink>
                         </NavSection>
+
+                        <NavSection title="Account">
+                            <NavLink href="/settings" icon="settings">Settings</NavLink>
+                        </NavSection>
                     </nav>
 
-                    {/* User info */}
-                    <div className="border-t border-white/5 px-4 py-3">
-                        <p className="text-sm font-medium text-white truncate">{userName}</p>
-                        <p className="text-xs text-muted truncate">{orgName} &middot; {role}</p>
+                    {/* User info + Sign out */}
+                    <div className="border-t border-white/5 px-4 py-3 space-y-2">
+                        <div>
+                            <p className="text-sm font-medium text-white truncate">{userName}</p>
+                            <p className="text-xs text-muted truncate">{orgName} &middot; {role}</p>
+                        </div>
+                        <SignOutButton />
                     </div>
                 </aside>
 
@@ -83,7 +93,7 @@ export default async function DashboardLayout({
 
                         {/* Desktop: logo area is in sidebar, so just spacer */}
                         <div className="flex-1 lg:hidden">
-                            <span className="text-base font-semibold text-white">Hash Agent</span>
+                            <Logo size="sm" />
                         </div>
                         <div className="hidden lg:block flex-1" />
                     </header>

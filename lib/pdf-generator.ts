@@ -605,6 +605,95 @@ function MaintenanceLogDocument({ log }: { log: MaintenanceLogData }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// PRESSED BATCH PDF
+// ═══════════════════════════════════════════════════════════════════════════
+
+type PressedBatchData = {
+    batchNumber: string
+    strain?: string | null
+    pressDate: Date | string
+    micronsUsed?: string | null
+    inputWeightG?: number | null
+    finalWeightG?: number | null
+    processingLossG?: number | null
+    processingLossPct?: number | null
+    notes?: string | null
+    metrcUid?: string | null
+    processedBy?: string | null
+    verifiedBy?: string | null
+    sourceHashBatch: { batchNumber: string; strain: string }
+}
+
+function PressedBatchDocument({ batch }: { batch: PressedBatchData }) {
+    return React.createElement(
+        Document,
+        null,
+        React.createElement(
+            Page,
+            { size: 'LETTER', style: styles.page },
+            // Header
+            React.createElement(
+                View,
+                { style: styles.header },
+                React.createElement(Text, { style: styles.headerTitle }, 'Pressed Hash Manufacturing Batch Record'),
+                React.createElement(Text, { style: styles.headerSubtitle }, `${batch.batchNumber}  •  ${batch.strain ?? batch.sourceHashBatch.strain}  •  ${fmtDate(batch.pressDate)}`)
+            ),
+            // Source Material
+            React.createElement(
+                View,
+                { style: styles.section },
+                React.createElement(Text, { style: styles.sectionTitle }, 'Source Material'),
+                React.createElement(DataRow, { label: 'Source Batch', value: batch.sourceHashBatch.batchNumber }),
+                React.createElement(DataRow, { label: 'Source Strain', value: batch.sourceHashBatch.strain, alt: true })
+            ),
+            // Processing
+            React.createElement(
+                View,
+                { style: styles.section },
+                React.createElement(Text, { style: styles.sectionTitle }, 'Processing'),
+                React.createElement(DataRow, { label: 'Press Date', value: fmtDate(batch.pressDate) }),
+                React.createElement(DataRow, { label: 'Microns Used', value: batch.micronsUsed ?? '—', alt: true }),
+                React.createElement(DataRow, { label: 'Input Weight', value: fmt(batch.inputWeightG) }),
+                React.createElement(DataRow, { label: 'Final Weight', value: fmt(batch.finalWeightG), alt: true }),
+                React.createElement(DataRow, { label: 'Processing Loss', value: fmt(batch.processingLossG) }),
+                React.createElement(DataRow, { label: 'Loss %', value: fmtPct(batch.processingLossPct), alt: true })
+            ),
+            // Compliance
+            React.createElement(
+                View,
+                { style: styles.section },
+                React.createElement(Text, { style: styles.sectionTitle }, 'Compliance'),
+                React.createElement(DataRow, { label: 'METRC UID', value: batch.metrcUid ?? '—' }),
+                React.createElement(DataRow, { label: 'Notes', value: batch.notes ?? '—', alt: true })
+            ),
+            // Sign-off
+            React.createElement(
+                View,
+                { style: styles.section },
+                React.createElement(Text, { style: styles.sectionTitle }, 'Sign-Off'),
+                React.createElement(
+                    View,
+                    { style: styles.signoffGrid },
+                    React.createElement(
+                        View,
+                        { style: styles.signoffBox },
+                        React.createElement(Text, { style: styles.signoffLabel }, 'Processed By'),
+                        React.createElement(Text, { style: styles.signoffValue }, batch.processedBy ?? '—')
+                    ),
+                    React.createElement(
+                        View,
+                        { style: styles.signoffBox },
+                        React.createElement(Text, { style: styles.signoffLabel }, 'Verified By'),
+                        React.createElement(Text, { style: styles.signoffValue }, batch.verifiedBy ?? '—')
+                    )
+                )
+            ),
+            React.createElement(Footer, { batchNumber: batch.batchNumber })
+        )
+    )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // PUBLIC API — Generate PDF buffers
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -622,4 +711,8 @@ export async function generateCleaningLogPDF(log: CleaningLogData): Promise<Buff
 
 export async function generateMaintenanceLogPDF(log: MaintenanceLogData): Promise<Buffer> {
     return renderToBuffer(React.createElement(MaintenanceLogDocument, { log }) as AnyElement)
+}
+
+export async function generatePressedBatchPDF(batch: PressedBatchData): Promise<Buffer> {
+    return renderToBuffer(React.createElement(PressedBatchDocument, { batch }) as AnyElement)
 }

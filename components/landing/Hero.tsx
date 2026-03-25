@@ -32,6 +32,7 @@ export function Hero() {
                             <p className="text-lg text-[#9ca3af] max-w-lg leading-relaxed">
                                 Track every wash, press, and cure. AI-powered yield analytics
                                 and equipment monitoring for solventless concentrate manufacturers.
+                                Developed by Emerald Cup, Ego Clash, and Dabadoo winning Hash Maker: Cherryblossom Belle.
                             </p>
 
                             <div className="flex items-center gap-4 pt-2">

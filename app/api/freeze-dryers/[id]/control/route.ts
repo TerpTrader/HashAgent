@@ -30,91 +30,102 @@ export async function POST(
         return NextResponse.json({ error: 'Permission denied' }, { status: 403 })
     }
 
-    const body = await req.json()
+    let body: unknown
+    try {
+        body = await req.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+
     const parsed = commandSchema.safeParse(body)
     if (!parsed.success) {
         return NextResponse.json({ error: 'Invalid command', details: parsed.error.flatten() }, { status: 400 })
     }
 
-    // Verify ownership
-    const dryer = await db.freezeDryer.findFirst({
-        where: { id, orgId: session.orgId },
-    })
-    if (!dryer) {
-        return NextResponse.json({ error: 'Freeze dryer not found' }, { status: 404 })
+    try {
+        // Verify ownership
+        const dryer = await db.freezeDryer.findFirst({
+            where: { id, orgId: session.orgId },
+        })
+        if (!dryer) {
+            return NextResponse.json({ error: 'Freeze dryer not found' }, { status: 404 })
+        }
+
+        if (!dryer.isOnline) {
+            return NextResponse.json({ error: 'Freeze dryer is offline' }, { status: 409 })
+        }
+
+        const { command, batchName, minutes } = parsed.data
+
+        // TODO_CAPTURE: Implement actual MQTT publish after Fiddler capture
+        // For now, log the command and update state optimistically
+        switch (command) {
+            case 'start_batch':
+                await db.freezeDryer.update({
+                    where: { id },
+                    data: {
+                        currentPhase: 'FREEZING',
+                        batchStartedAt: new Date(),
+                        batchProgress: 0,
+                    },
+                })
+                break
+
+            case 'stop_batch':
+                await db.freezeDryer.update({
+                    where: { id },
+                    data: {
+                        currentPhase: 'IDLE',
+                        batchStartedAt: null,
+                        batchProgress: null,
+                    },
+                })
+                break
+
+            case 'add_time':
+                // No state change needed — the machine handles this
+                break
+
+            case 'acknowledge_error':
+                // Clear error alerts for this machine
+                await db.haAlert.updateMany({
+                    where: {
+                        freezeDryerId: id,
+                        category: 'ERROR',
+                        status: 'ACTIVE',
+                    },
+                    data: {
+                        status: 'ACKNOWLEDGED',
+                        acknowledgedAt: new Date(),
+                        acknowledgedBy: session.user?.id ?? 'unknown',
+                    },
+                })
+                break
+        }
+
+        // Log the command for audit trail
+        await db.haEquipmentMaintenanceLog.create({
+            data: {
+                orgId: session.orgId,
+                category: 'FREEZE_DRYER',
+                equipmentId: id,
+                equipmentType: 'freeze_dryer',
+                equipmentName: dryer.name,
+                date: new Date(),
+                description: `Remote command: ${command}${batchName ? ` (${batchName})` : ''}${minutes ? ` (+${minutes}min)` : ''}`,
+                performedBy: session.user?.name ?? session.user?.email ?? 'Unknown',
+            },
+        })
+
+        return NextResponse.json({
+            data: {
+                success: true,
+                command,
+                note: 'Command logged. MQTT publish pending Fiddler capture confirmation.',
+            },
+        })
+    } catch (err) {
+        console.error('Failed to execute freeze dryer command:', err)
+        return NextResponse.json({ error: 'Failed to execute freeze dryer command' }, { status: 500 })
     }
-
-    if (!dryer.isOnline) {
-        return NextResponse.json({ error: 'Freeze dryer is offline' }, { status: 409 })
-    }
-
-    const { command, batchName, minutes } = parsed.data
-
-    // TODO_CAPTURE: Implement actual MQTT publish after Fiddler capture
-    // For now, log the command and update state optimistically
-    switch (command) {
-        case 'start_batch':
-            await db.freezeDryer.update({
-                where: { id },
-                data: {
-                    currentPhase: 'FREEZING',
-                    batchStartedAt: new Date(),
-                    batchProgress: 0,
-                },
-            })
-            break
-
-        case 'stop_batch':
-            await db.freezeDryer.update({
-                where: { id },
-                data: {
-                    currentPhase: 'IDLE',
-                    batchStartedAt: null,
-                    batchProgress: null,
-                },
-            })
-            break
-
-        case 'add_time':
-            // No state change needed — the machine handles this
-            break
-
-        case 'acknowledge_error':
-            // Clear error alerts for this machine
-            await db.haAlert.updateMany({
-                where: {
-                    freezeDryerId: id,
-                    category: 'ERROR',
-                    status: 'ACTIVE',
-                },
-                data: {
-                    status: 'ACKNOWLEDGED',
-                    acknowledgedAt: new Date(),
-                    acknowledgedBy: session.user?.id ?? 'unknown',
-                },
-            })
-            break
-    }
-
-    // Log the command for audit trail
-    await db.haEquipmentMaintenanceLog.create({
-        data: {
-            orgId: session.orgId,
-            category: 'FREEZE_DRYER',
-            equipmentId: id,
-            equipmentType: 'freeze_dryer',
-            equipmentName: dryer.name,
-            date: new Date(),
-            description: `Remote command: ${command}${batchName ? ` (${batchName})` : ''}${minutes ? ` (+${minutes}min)` : ''}`,
-            performedBy: session.user?.name ?? session.user?.email ?? 'Unknown',
-        },
-    })
-
-    return NextResponse.json({
-        data: {
-            success: true,
-            command,
-            note: 'Command logged. MQTT publish pending Fiddler capture confirmation.',
-        },
-    })
 }

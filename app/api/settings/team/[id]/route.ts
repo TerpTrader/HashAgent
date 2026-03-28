@@ -24,7 +24,13 @@ export async function PATCH(
 
     const { id } = await params
 
-    const body = await req.json()
+    let body: unknown
+    try {
+        body = await req.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+
     const parsed = updateTeamMemberRoleSchema.safeParse(body)
 
     if (!parsed.success) {
@@ -34,42 +40,50 @@ export async function PATCH(
         )
     }
 
-    // Fetch the member to check constraints
-    const member = await db.orgMember.findUnique({
-        where: { id },
-        select: { userId: true, role: true, orgId: true },
-    })
-
-    if (!member || member.orgId !== session.orgId) {
-        return NextResponse.json({ error: 'Member not found' }, { status: 404 })
-    }
-
-    // Cannot change own role
-    if (member.userId === session.user.id) {
-        return NextResponse.json(
-            { error: 'You cannot change your own role' },
-            { status: 400 }
-        )
-    }
-
-    // If demoting an OWNER, ensure at least one OWNER remains
-    if (member.role === 'OWNER' && parsed.data.role !== 'OWNER') {
-        const ownerCount = await db.orgMember.count({
-            where: { orgId: session.orgId, role: 'OWNER' },
+    try {
+        // Fetch the member to check constraints
+        const member = await db.orgMember.findUnique({
+            where: { id },
+            select: { userId: true, role: true, orgId: true },
         })
-        if (ownerCount <= 1) {
+
+        if (!member || member.orgId !== session.orgId) {
+            return NextResponse.json({ error: 'Member not found' }, { status: 404 })
+        }
+
+        // Cannot change own role
+        if (member.userId === session.user.id) {
             return NextResponse.json(
-                { error: 'Cannot demote the last owner. Transfer ownership first.' },
+                { error: 'You cannot change your own role' },
                 { status: 400 }
             )
         }
+
+        // If demoting an OWNER, ensure at least one OWNER remains
+        if (member.role === 'OWNER' && parsed.data.role !== 'OWNER') {
+            const ownerCount = await db.orgMember.count({
+                where: { orgId: session.orgId, role: 'OWNER' },
+            })
+            if (ownerCount <= 1) {
+                return NextResponse.json(
+                    { error: 'Cannot demote the last owner. Transfer ownership first.' },
+                    { status: 400 }
+                )
+            }
+        }
+
+        const updated = await db.orgMember.update({
+            where: { id },
+            data: { role: parsed.data.role },
+            select: { role: true },
+        })
+
+        return NextResponse.json({ data: updated })
+    } catch (error) {
+        console.error('Failed to update team member role:', error)
+        return NextResponse.json(
+            { error: 'Failed to update team member role' },
+            { status: 500 }
+        )
     }
-
-    const updated = await db.orgMember.update({
-        where: { id },
-        data: { role: parsed.data.role },
-        select: { role: true },
-    })
-
-    return NextResponse.json({ data: updated })
 }

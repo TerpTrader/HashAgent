@@ -73,7 +73,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await req.json()
+    let body: unknown
+    try {
+        body = await req.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+
     const parsed = createHashBatchSchema.safeParse(body)
 
     if (!parsed.success) {
@@ -95,53 +101,63 @@ export async function POST(req: NextRequest) {
     if (totalYieldG > 0) status = 'COMPLETE'
     else if (data.freezeDryerId || data.dryingDate) status = 'DRYING'
 
-    const batch = await db.hashBatch.create({
-        data: {
-            orgId: session.orgId,
-            strain: data.strain,
-            batchNumber: data.batchNumber,
-            washDate: new Date(data.washDate),
-            materialState: data.materialState,
-            materialGrade: data.materialGrade,
-            farmSource: data.farmSource,
-            metrcSourceUid: data.metrcSourceUid,
-            metrcProductUid: data.metrcProductUid,
-            licenseKey: data.licenseKey,
-            cleaningLogRef: data.cleaningLogRef,
-            rawMaterialWeightG: data.rawMaterialWeightG,
-            rawMaterialWeightLb: data.rawMaterialWeightG ? data.rawMaterialWeightG / 453.592 : null,
-            wetWasteWeightG: data.wetWasteWeightG,
-            expectedYieldPct: data.expectedYieldPct,
-            equipmentUsed: data.equipmentUsed ?? undefined,
-            freezeDryerId: data.freezeDryerId,
-            dryingDate: data.dryingDate ? new Date(data.dryingDate) : undefined,
-            shelfLimitF: data.shelfLimitF,
-            freezeTimeHrs: data.freezeTimeHrs,
-            dryingTimeHrs: data.dryingTimeHrs,
-            yield160u: data.yield160u,
-            yield120u: data.yield120u,
-            yield90u: data.yield90u,
-            yield73u: data.yield73u,
-            yield45u: data.yield45u,
-            yield25u: data.yield25u,
-            totalYieldG,
-            yieldPct,
-            qualityTier,
-            status,
-            productName: data.productName,
-            manufacturingDate: data.manufacturingDate ? new Date(data.manufacturingDate) : undefined,
-            allocQa: data.allocQa,
-            allocPackaged: data.allocPackaged,
-            allocPressed: data.allocPressed,
-            allocPreRoll: data.allocPreRoll,
-            allocWhiteLabel: data.allocWhiteLabel,
-            allocRosin: data.allocRosin,
-            allocLossG: data.allocLossG,
-            allocationNotes: data.allocationNotes,
-            processedBy: data.processedBy,
-            verifiedBy: data.verifiedBy,
-        },
-    })
+    // Sanitize optional foreign-key fields — empty strings from form defaults
+    // must be converted to null to avoid FK constraint violations
+    const freezeDryerId = data.freezeDryerId?.trim() || null
 
-    return NextResponse.json({ data: batch }, { status: 201 })
+    try {
+        const batch = await db.hashBatch.create({
+            data: {
+                orgId: session.orgId,
+                strain: data.strain,
+                batchNumber: data.batchNumber,
+                washDate: new Date(data.washDate),
+                materialState: data.materialState,
+                materialGrade: data.materialGrade,
+                farmSource: data.farmSource || null,
+                metrcSourceUid: data.metrcSourceUid || null,
+                metrcProductUid: data.metrcProductUid || null,
+                licenseKey: data.licenseKey || null,
+                cleaningLogRef: data.cleaningLogRef || null,
+                rawMaterialWeightG: data.rawMaterialWeightG,
+                rawMaterialWeightLb: data.rawMaterialWeightG ? data.rawMaterialWeightG / 453.592 : null,
+                wetWasteWeightG: data.wetWasteWeightG,
+                expectedYieldPct: data.expectedYieldPct,
+                equipmentUsed: data.equipmentUsed ?? undefined,
+                freezeDryerId,
+                dryingDate: data.dryingDate ? new Date(data.dryingDate) : undefined,
+                shelfLimitF: data.shelfLimitF,
+                freezeTimeHrs: data.freezeTimeHrs,
+                dryingTimeHrs: data.dryingTimeHrs,
+                yield160u: data.yield160u,
+                yield120u: data.yield120u,
+                yield90u: data.yield90u,
+                yield73u: data.yield73u,
+                yield45u: data.yield45u,
+                yield25u: data.yield25u,
+                totalYieldG,
+                yieldPct,
+                qualityTier,
+                status,
+                productName: data.productName || null,
+                manufacturingDate: data.manufacturingDate ? new Date(data.manufacturingDate) : undefined,
+                allocQa: data.allocQa,
+                allocPackaged: data.allocPackaged,
+                allocPressed: data.allocPressed,
+                allocPreRoll: data.allocPreRoll,
+                allocWhiteLabel: data.allocWhiteLabel,
+                allocRosin: data.allocRosin,
+                allocLossG: data.allocLossG,
+                allocationNotes: data.allocationNotes || null,
+                processedBy: data.processedBy || null,
+                verifiedBy: data.verifiedBy || null,
+            },
+        })
+
+        return NextResponse.json({ data: batch }, { status: 201 })
+    } catch (err) {
+        console.error('[POST /api/batches] DB error:', err)
+        const message = err instanceof Error ? err.message : 'Database error'
+        return NextResponse.json({ error: `Failed to create batch: ${message}` }, { status: 500 })
+    }
 }

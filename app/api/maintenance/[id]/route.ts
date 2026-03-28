@@ -15,15 +15,20 @@ export async function GET(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const log = await db.haEquipmentMaintenanceLog.findFirst({
-        where: { id, orgId: session.orgId },
-    })
+    try {
+        const log = await db.haEquipmentMaintenanceLog.findFirst({
+            where: { id, orgId: session.orgId },
+        })
 
-    if (!log) {
-        return NextResponse.json({ error: 'Maintenance log not found' }, { status: 404 })
+        if (!log) {
+            return NextResponse.json({ error: 'Maintenance log not found' }, { status: 404 })
+        }
+
+        return NextResponse.json({ data: log })
+    } catch (err) {
+        console.error('Failed to fetch maintenance log:', err)
+        return NextResponse.json({ error: 'Failed to fetch maintenance log' }, { status: 500 })
     }
-
-    return NextResponse.json({ data: log })
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -39,35 +44,45 @@ export async function PATCH(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify ownership
-    const existing = await db.haEquipmentMaintenanceLog.findFirst({
-        where: { id, orgId: session.orgId },
-        select: { id: true },
-    })
-
-    if (!existing) {
-        return NextResponse.json({ error: 'Maintenance log not found' }, { status: 404 })
+    let body: Record<string, unknown>
+    try {
+        body = await req.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
     }
 
-    const body = await req.json()
+    try {
+        // Verify ownership
+        const existing = await db.haEquipmentMaintenanceLog.findFirst({
+            where: { id, orgId: session.orgId },
+            select: { id: true },
+        })
 
-    // Strip fields that should not be directly updated
-    const { id: _id, orgId: _orgId, createdAt: _ca, updatedAt: _ua, ...updateData } = body
+        if (!existing) {
+            return NextResponse.json({ error: 'Maintenance log not found' }, { status: 404 })
+        }
 
-    // Convert date strings to Date objects if present
-    if (typeof updateData.date === 'string') {
-        updateData.date = new Date(updateData.date)
+        // Strip fields that should not be directly updated
+        const { id: _id, orgId: _orgId, createdAt: _ca, updatedAt: _ua, ...updateData } = body
+
+        // Convert date strings to Date objects if present
+        if (typeof updateData.date === 'string') {
+            updateData.date = new Date(updateData.date)
+        }
+        if (typeof updateData.nextDueDate === 'string') {
+            updateData.nextDueDate = new Date(updateData.nextDueDate)
+        }
+
+        const log = await db.haEquipmentMaintenanceLog.update({
+            where: { id },
+            data: updateData,
+        })
+
+        return NextResponse.json({ data: log })
+    } catch (err) {
+        console.error('Failed to update maintenance log:', err)
+        return NextResponse.json({ error: 'Failed to update maintenance log' }, { status: 500 })
     }
-    if (typeof updateData.nextDueDate === 'string') {
-        updateData.nextDueDate = new Date(updateData.nextDueDate)
-    }
-
-    const log = await db.haEquipmentMaintenanceLog.update({
-        where: { id },
-        data: updateData,
-    })
-
-    return NextResponse.json({ data: log })
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -83,17 +98,22 @@ export async function DELETE(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify ownership
-    const existing = await db.haEquipmentMaintenanceLog.findFirst({
-        where: { id, orgId: session.orgId },
-        select: { id: true },
-    })
+    try {
+        // Verify ownership
+        const existing = await db.haEquipmentMaintenanceLog.findFirst({
+            where: { id, orgId: session.orgId },
+            select: { id: true },
+        })
 
-    if (!existing) {
-        return NextResponse.json({ error: 'Maintenance log not found' }, { status: 404 })
+        if (!existing) {
+            return NextResponse.json({ error: 'Maintenance log not found' }, { status: 404 })
+        }
+
+        await db.haEquipmentMaintenanceLog.delete({ where: { id } })
+
+        return NextResponse.json({ data: { deleted: true } })
+    } catch (err) {
+        console.error('Failed to delete maintenance log:', err)
+        return NextResponse.json({ error: 'Failed to delete maintenance log' }, { status: 500 })
     }
-
-    await db.haEquipmentMaintenanceLog.delete({ where: { id } })
-
-    return NextResponse.json({ data: { deleted: true } })
 }

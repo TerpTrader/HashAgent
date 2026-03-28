@@ -38,51 +38,56 @@ export async function GET() {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const [freezeDryers, waterSystems] = await Promise.all([
-        db.freezeDryer.findMany({
-            where: { orgId: session.orgId },
-            orderBy: { name: 'asc' },
-        }),
-        db.waterFiltrationSystem.findMany({
-            where: { orgId: session.orgId },
-            orderBy: { name: 'asc' },
-        }),
-    ])
+    try {
+        const [freezeDryers, waterSystems] = await Promise.all([
+            db.freezeDryer.findMany({
+                where: { orgId: session.orgId },
+                orderBy: { name: 'asc' },
+            }),
+            db.waterFiltrationSystem.findMany({
+                where: { orgId: session.orgId },
+                orderBy: { name: 'asc' },
+            }),
+        ])
 
-    // Map to unified shape for the equipment registry
-    const equipment = [
-        ...freezeDryers.map((fd) => ({
-            id: fd.id,
-            name: fd.name,
-            type: 'freeze_dryer' as const,
-            model: fd.model,
-            serial: fd.serial,
-            callsign: fd.callsign,
-            pumpModel: fd.pumpModel,
-            connectionType: fd.connectionType,
-            isOnline: fd.isOnline,
-            currentPhase: fd.currentPhase,
-            createdAt: fd.createdAt,
-        })),
-        ...waterSystems.map((ws) => ({
-            id: ws.id,
-            name: ws.name,
-            type: 'water_filtration' as const,
-            model: ws.model,
-            serial: null,
-            callsign: null,
-            pumpModel: null,
-            connectionType: null,
-            isOnline: null,
-            currentPhase: null,
-            sedimentFilterDate: ws.sedimentFilterDate,
-            carbonFilterDate: ws.carbonFilterDate,
-            preFilterDate: ws.preFilterDate,
-            createdAt: ws.createdAt,
-        })),
-    ].sort((a, b) => a.name.localeCompare(b.name))
+        // Map to unified shape for the equipment registry
+        const equipment = [
+            ...freezeDryers.map((fd) => ({
+                id: fd.id,
+                name: fd.name,
+                type: 'freeze_dryer' as const,
+                model: fd.model,
+                serial: fd.serial,
+                callsign: fd.callsign,
+                pumpModel: fd.pumpModel,
+                connectionType: fd.connectionType,
+                isOnline: fd.isOnline,
+                currentPhase: fd.currentPhase,
+                createdAt: fd.createdAt,
+            })),
+            ...waterSystems.map((ws) => ({
+                id: ws.id,
+                name: ws.name,
+                type: 'water_filtration' as const,
+                model: ws.model,
+                serial: null,
+                callsign: null,
+                pumpModel: null,
+                connectionType: null,
+                isOnline: null,
+                currentPhase: null,
+                sedimentFilterDate: ws.sedimentFilterDate,
+                carbonFilterDate: ws.carbonFilterDate,
+                preFilterDate: ws.preFilterDate,
+                createdAt: ws.createdAt,
+            })),
+        ].sort((a, b) => a.name.localeCompare(b.name))
 
-    return NextResponse.json({ data: equipment })
+        return NextResponse.json({ data: equipment })
+    } catch (err) {
+        console.error('Failed to fetch equipment:', err)
+        return NextResponse.json({ error: 'Failed to fetch equipment' }, { status: 500 })
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -94,7 +99,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await req.json()
+    let body: unknown
+    try {
+        body = await req.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+
     const parsed = createEquipmentSchema.safeParse(body)
 
     if (!parsed.success) {
@@ -106,33 +117,38 @@ export async function POST(req: NextRequest) {
 
     const data = parsed.data
 
-    if (data.type === 'freeze_dryer') {
-        const dryer = await db.freezeDryer.create({
+    try {
+        if (data.type === 'freeze_dryer') {
+            const dryer = await db.freezeDryer.create({
+                data: {
+                    orgId: session.orgId,
+                    name: data.name,
+                    callsign: data.callsign || null,
+                    model: data.model || null,
+                    serial: data.serial || null,
+                    pumpModel: data.pumpModel || null,
+                    connectionType: data.connectionType,
+                },
+            })
+
+            return NextResponse.json({ data: { ...dryer, type: 'freeze_dryer' } }, { status: 201 })
+        }
+
+        // Water filtration
+        const system = await db.waterFiltrationSystem.create({
             data: {
                 orgId: session.orgId,
                 name: data.name,
-                callsign: data.callsign,
-                model: data.model,
-                serial: data.serial,
-                pumpModel: data.pumpModel,
-                connectionType: data.connectionType,
+                model: data.model || null,
+                sedimentFilterDate: data.sedimentFilterDate ? new Date(data.sedimentFilterDate) : undefined,
+                carbonFilterDate: data.carbonFilterDate ? new Date(data.carbonFilterDate) : undefined,
+                preFilterDate: data.preFilterDate ? new Date(data.preFilterDate) : undefined,
             },
         })
 
-        return NextResponse.json({ data: { ...dryer, type: 'freeze_dryer' } }, { status: 201 })
+        return NextResponse.json({ data: { ...system, type: 'water_filtration' } }, { status: 201 })
+    } catch (err) {
+        console.error('Failed to create equipment:', err)
+        return NextResponse.json({ error: 'Failed to create equipment' }, { status: 500 })
     }
-
-    // Water filtration
-    const system = await db.waterFiltrationSystem.create({
-        data: {
-            orgId: session.orgId,
-            name: data.name,
-            model: data.model,
-            sedimentFilterDate: data.sedimentFilterDate ? new Date(data.sedimentFilterDate) : undefined,
-            carbonFilterDate: data.carbonFilterDate ? new Date(data.carbonFilterDate) : undefined,
-            preFilterDate: data.preFilterDate ? new Date(data.preFilterDate) : undefined,
-        },
-    })
-
-    return NextResponse.json({ data: { ...system, type: 'water_filtration' } }, { status: 201 })
 }

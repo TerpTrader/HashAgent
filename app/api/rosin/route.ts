@@ -81,7 +81,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await req.json()
+    let body: unknown
+    try {
+        body = await req.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+
     const parsed = createRosinBatchSchema.safeParse(body)
 
     if (!parsed.success) {
@@ -93,99 +99,108 @@ export async function POST(req: NextRequest) {
 
     const data = parsed.data
 
-    // Verify source hash batch exists and belongs to org
-    const sourceBatch = await db.hashBatch.findFirst({
-        where: { id: data.sourceHashBatchId, orgId: session.orgId },
-    })
-    if (!sourceBatch) {
-        return NextResponse.json(
-            { error: 'Source hash batch not found' },
-            { status: 404 }
-        )
-    }
+    try {
+        // Verify source hash batch exists and belongs to org
+        const sourceBatch = await db.hashBatch.findFirst({
+            where: { id: data.sourceHashBatchId, orgId: session.orgId },
+        })
+        if (!sourceBatch) {
+            return NextResponse.json(
+                { error: 'Source hash batch not found' },
+                { status: 404 }
+            )
+        }
 
-    // Auto-calculate derived fields
-    const totalHashWeightG =
-        (data.micron120uWeightG ?? 0) +
-        (data.micron90uWeightG ?? 0) +
-        (data.micron73uWeightG ?? 0) +
-        (data.micron45uWeightG ?? 0)
+        // Auto-calculate derived fields
+        const totalHashWeightG =
+            (data.micron120uWeightG ?? 0) +
+            (data.micron90uWeightG ?? 0) +
+            (data.micron73uWeightG ?? 0) +
+            (data.micron45uWeightG ?? 0)
 
-    const rosinYieldPct = data.rosinYieldWeightG
-        ? calculateYieldPct(data.rosinYieldWeightG, totalHashWeightG)
-        : null
-
-    const hashToRosinDiffG = data.rosinYieldWeightG
-        ? totalHashWeightG - data.rosinYieldWeightG
-        : null
-
-    const decarbLossG =
-        data.decarb && data.decarbWeightG && data.rosinYieldWeightG
-            ? data.rosinYieldWeightG - data.decarbWeightG
+        const rosinYieldPct = data.rosinYieldWeightG
+            ? calculateYieldPct(data.rosinYieldWeightG, totalHashWeightG)
             : null
 
-    // Determine status
-    let status: 'PRESSING' | 'POST_PROCESSING' | 'DECARB' | 'COMPLETE' = 'PRESSING'
-    if (data.rosinYieldWeightG && data.rosinYieldWeightG > 0) {
-        status = data.decarb ? 'DECARB' : 'COMPLETE'
-    }
-    if (data.qcVerifiedBy) status = 'COMPLETE'
+        const hashToRosinDiffG = data.rosinYieldWeightG
+            ? totalHashWeightG - data.rosinYieldWeightG
+            : null
 
-    const batch = await db.rosinBatch.create({
-        data: {
-            orgId: session.orgId,
-            batchNumber: data.batchNumber,
-            sourceHashBatchId: data.sourceHashBatchId,
-            strain: data.strain,
+        const decarbLossG =
+            data.decarb && data.decarbWeightG && data.rosinYieldWeightG
+                ? data.rosinYieldWeightG - data.decarbWeightG
+                : null
 
-            // Micron weights
-            micron120uWeightG: data.micron120uWeightG,
-            micron90uWeightG: data.micron90uWeightG,
-            micron73uWeightG: data.micron73uWeightG,
-            micron45uWeightG: data.micron45uWeightG,
-            totalHashWeightG,
+        // Determine status
+        let status: 'PRESSING' | 'POST_PROCESSING' | 'DECARB' | 'COMPLETE' = 'PRESSING'
+        if (data.rosinYieldWeightG && data.rosinYieldWeightG > 0) {
+            status = data.decarb ? 'DECARB' : 'COMPLETE'
+        }
+        if (data.qcVerifiedBy) status = 'COMPLETE'
 
-            // Press
-            pressId: data.pressId,
-            equipmentUsed: data.equipmentUsed ?? undefined,
-            productName: data.productName,
-            productType: data.productType,
-            processDate: new Date(data.processDate),
+        // Sanitize optional string fields — empty strings → null
+        const pressId = data.pressId?.trim() || null
 
-            // Yield
-            rosinYieldWeightG: data.rosinYieldWeightG,
-            rosinYieldPct,
-            hashToRosinDiffG,
+        const batch = await db.rosinBatch.create({
+            data: {
+                orgId: session.orgId,
+                batchNumber: data.batchNumber,
+                sourceHashBatchId: data.sourceHashBatchId,
+                strain: data.strain,
 
-            // Decarb
-            decarb: data.decarb,
-            decarbWeightG: data.decarbWeightG,
-            decarbLossG,
+                // Micron weights
+                micron120uWeightG: data.micron120uWeightG,
+                micron90uWeightG: data.micron90uWeightG,
+                micron73uWeightG: data.micron73uWeightG,
+                micron45uWeightG: data.micron45uWeightG,
+                totalHashWeightG,
 
-            // Chip & bag
-            rosinChipUid: data.rosinChipUid,
-            rosinChipEstimateG: data.rosinChipEstimateG,
-            bagWeightG: data.bagWeightG,
+                // Press
+                pressId,
+                equipmentUsed: data.equipmentUsed ?? undefined,
+                productName: data.productName || null,
+                productType: data.productType,
+                processDate: new Date(data.processDate),
 
-            // METRC
-            rosinProductUid: data.rosinProductUid,
-            metrcBatchNumber: data.metrcBatchNumber,
-            companyProcessedFor: data.companyProcessedFor,
+                // Yield
+                rosinYieldWeightG: data.rosinYieldWeightG,
+                rosinYieldPct,
+                hashToRosinDiffG,
 
-            // Status & personnel
-            status,
-            consistency: data.consistency,
-            rosinProcessedBy: data.rosinProcessedBy,
-            decarbProcessedBy: data.decarbProcessedBy,
-            qcVerifiedBy: data.qcVerifiedBy,
-            cleaningLogRef: data.cleaningLogRef,
-        },
-        include: {
-            sourceHashBatch: {
-                select: { strain: true, batchNumber: true },
+                // Decarb
+                decarb: data.decarb,
+                decarbWeightG: data.decarbWeightG,
+                decarbLossG,
+
+                // Chip & bag
+                rosinChipUid: data.rosinChipUid || null,
+                rosinChipEstimateG: data.rosinChipEstimateG,
+                bagWeightG: data.bagWeightG,
+
+                // METRC
+                rosinProductUid: data.rosinProductUid || null,
+                metrcBatchNumber: data.metrcBatchNumber || null,
+                companyProcessedFor: data.companyProcessedFor || null,
+
+                // Status & personnel
+                status,
+                consistency: data.consistency || null,
+                rosinProcessedBy: data.rosinProcessedBy || null,
+                decarbProcessedBy: data.decarbProcessedBy || null,
+                qcVerifiedBy: data.qcVerifiedBy || null,
+                cleaningLogRef: data.cleaningLogRef || null,
             },
-        },
-    })
+            include: {
+                sourceHashBatch: {
+                    select: { strain: true, batchNumber: true },
+                },
+            },
+        })
 
-    return NextResponse.json({ data: batch }, { status: 201 })
+        return NextResponse.json({ data: batch }, { status: 201 })
+    } catch (err) {
+        console.error('[POST /api/rosin] DB error:', err)
+        const message = err instanceof Error ? err.message : 'Database error'
+        return NextResponse.json({ error: `Failed to create rosin batch: ${message}` }, { status: 500 })
+    }
 }

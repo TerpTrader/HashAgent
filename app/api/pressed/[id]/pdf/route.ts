@@ -13,28 +13,39 @@ export async function GET(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const batch = await db.pressedBatch.findFirst({
-        where: { id, orgId: session.orgId },
-        include: {
-            sourceHashBatch: {
-                select: { batchNumber: true, strain: true },
+    let batch
+    try {
+        batch = await db.pressedBatch.findFirst({
+            where: { id, orgId: session.orgId },
+            include: {
+                sourceHashBatch: {
+                    select: { batchNumber: true, strain: true },
+                },
             },
-        },
-    })
-
-    if (!batch) {
-        return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
+        })
+    } catch (err) {
+        console.error('[GET /api/pressed/[id]/pdf] DB error:', err)
+        return NextResponse.json({ error: 'Failed to fetch pressed batch for PDF' }, { status: 500 })
     }
 
-    const buffer = await generatePressedBatchPDF(batch as Parameters<typeof generatePressedBatchPDF>[0])
-    const strain = batch.strain ?? batch.sourceHashBatch.strain
-    const filename = `${batch.batchNumber}-${strain.replace(/\s+/g, '_')}-pressed.pdf`
+    if (!batch) {
+        return NextResponse.json({ error: 'Pressed batch not found' }, { status: 404 })
+    }
 
-    return new NextResponse(new Uint8Array(buffer), {
-        status: 200,
-        headers: {
-            'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="${filename}"`,
-        },
-    })
+    try {
+        const buffer = await generatePressedBatchPDF(batch as Parameters<typeof generatePressedBatchPDF>[0])
+        const strain = batch.strain ?? batch.sourceHashBatch.strain
+        const filename = `${batch.batchNumber}-${strain.replace(/\s+/g, '_')}-pressed.pdf`
+
+        return new NextResponse(new Uint8Array(buffer), {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': `attachment; filename="${filename}"`,
+            },
+        })
+    } catch (err) {
+        console.error('[GET /api/pressed/[id]/pdf] PDF generation error:', err)
+        return NextResponse.json({ error: 'Failed to generate pressed batch PDF' }, { status: 500 })
+    }
 }

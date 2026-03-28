@@ -35,23 +35,28 @@ export async function GET(
         return NextResponse.json({ error: 'Invalid or missing type parameter' }, { status: 400 })
     }
 
-    if (equipmentType === 'freeze_dryer') {
-        const dryer = await db.freezeDryer.findFirst({
+    try {
+        if (equipmentType === 'freeze_dryer') {
+            const dryer = await db.freezeDryer.findFirst({
+                where: { id: id, orgId: session.orgId },
+            })
+            if (!dryer) {
+                return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
+            }
+            return NextResponse.json({ data: { ...dryer, type: 'freeze_dryer' } })
+        }
+
+        const system = await db.waterFiltrationSystem.findFirst({
             where: { id: id, orgId: session.orgId },
         })
-        if (!dryer) {
+        if (!system) {
             return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
         }
-        return NextResponse.json({ data: { ...dryer, type: 'freeze_dryer' } })
+        return NextResponse.json({ data: { ...system, type: 'water_filtration' } })
+    } catch (err) {
+        console.error('Failed to fetch equipment:', err)
+        return NextResponse.json({ error: 'Failed to fetch equipment' }, { status: 500 })
     }
-
-    const system = await db.waterFiltrationSystem.findFirst({
-        where: { id: id, orgId: session.orgId },
-    })
-    if (!system) {
-        return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
-    }
-    return NextResponse.json({ data: { ...system, type: 'water_filtration' } })
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -72,14 +77,36 @@ export async function PATCH(
         return NextResponse.json({ error: 'Invalid or missing type parameter' }, { status: 400 })
     }
 
-    const body = await req.json()
+    let body: Record<string, unknown>
+    try {
+        body = await req.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
 
     // Strip fields that should not be directly updated
     const { id: _id, orgId: _orgId, createdAt: _ca, updatedAt: _ua, type: _type, ...updateData } = body
 
-    if (equipmentType === 'freeze_dryer') {
-        // Verify ownership
-        const existing = await db.freezeDryer.findFirst({
+    try {
+        if (equipmentType === 'freeze_dryer') {
+            // Verify ownership
+            const existing = await db.freezeDryer.findFirst({
+                where: { id: id, orgId: session.orgId },
+                select: { id: true },
+            })
+            if (!existing) {
+                return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
+            }
+
+            const dryer = await db.freezeDryer.update({
+                where: { id: id },
+                data: updateData,
+            })
+            return NextResponse.json({ data: { ...dryer, type: 'freeze_dryer' } })
+        }
+
+        // Water filtration
+        const existing = await db.waterFiltrationSystem.findFirst({
             where: { id: id, orgId: session.orgId },
             select: { id: true },
         })
@@ -87,38 +114,26 @@ export async function PATCH(
             return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
         }
 
-        const dryer = await db.freezeDryer.update({
+        // Convert date strings to Date objects if present
+        if (typeof updateData.sedimentFilterDate === 'string') {
+            updateData.sedimentFilterDate = new Date(updateData.sedimentFilterDate)
+        }
+        if (typeof updateData.carbonFilterDate === 'string') {
+            updateData.carbonFilterDate = new Date(updateData.carbonFilterDate)
+        }
+        if (typeof updateData.preFilterDate === 'string') {
+            updateData.preFilterDate = new Date(updateData.preFilterDate)
+        }
+
+        const system = await db.waterFiltrationSystem.update({
             where: { id: id },
             data: updateData,
         })
-        return NextResponse.json({ data: { ...dryer, type: 'freeze_dryer' } })
+        return NextResponse.json({ data: { ...system, type: 'water_filtration' } })
+    } catch (err) {
+        console.error('Failed to update equipment:', err)
+        return NextResponse.json({ error: 'Failed to update equipment' }, { status: 500 })
     }
-
-    // Water filtration
-    const existing = await db.waterFiltrationSystem.findFirst({
-        where: { id: id, orgId: session.orgId },
-        select: { id: true },
-    })
-    if (!existing) {
-        return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
-    }
-
-    // Convert date strings to Date objects if present
-    if (typeof updateData.sedimentFilterDate === 'string') {
-        updateData.sedimentFilterDate = new Date(updateData.sedimentFilterDate)
-    }
-    if (typeof updateData.carbonFilterDate === 'string') {
-        updateData.carbonFilterDate = new Date(updateData.carbonFilterDate)
-    }
-    if (typeof updateData.preFilterDate === 'string') {
-        updateData.preFilterDate = new Date(updateData.preFilterDate)
-    }
-
-    const system = await db.waterFiltrationSystem.update({
-        where: { id: id },
-        data: updateData,
-    })
-    return NextResponse.json({ data: { ...system, type: 'water_filtration' } })
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -139,8 +154,21 @@ export async function DELETE(
         return NextResponse.json({ error: 'Invalid or missing type parameter' }, { status: 400 })
     }
 
-    if (equipmentType === 'freeze_dryer') {
-        const existing = await db.freezeDryer.findFirst({
+    try {
+        if (equipmentType === 'freeze_dryer') {
+            const existing = await db.freezeDryer.findFirst({
+                where: { id: id, orgId: session.orgId },
+                select: { id: true },
+            })
+            if (!existing) {
+                return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
+            }
+
+            await db.freezeDryer.delete({ where: { id: id } })
+            return NextResponse.json({ data: { deleted: true } })
+        }
+
+        const existing = await db.waterFiltrationSystem.findFirst({
             where: { id: id, orgId: session.orgId },
             select: { id: true },
         })
@@ -148,18 +176,10 @@ export async function DELETE(
             return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
         }
 
-        await db.freezeDryer.delete({ where: { id: id } })
+        await db.waterFiltrationSystem.delete({ where: { id: id } })
         return NextResponse.json({ data: { deleted: true } })
+    } catch (err) {
+        console.error('Failed to delete equipment:', err)
+        return NextResponse.json({ error: 'Failed to delete equipment' }, { status: 500 })
     }
-
-    const existing = await db.waterFiltrationSystem.findFirst({
-        where: { id: id, orgId: session.orgId },
-        select: { id: true },
-    })
-    if (!existing) {
-        return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
-    }
-
-    await db.waterFiltrationSystem.delete({ where: { id: id } })
-    return NextResponse.json({ data: { deleted: true } })
 }

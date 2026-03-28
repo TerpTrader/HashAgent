@@ -12,22 +12,30 @@ export async function GET() {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const members = await db.orgMember.findMany({
-        where: { orgId: session.orgId },
-        include: {
-            user: {
-                select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    createdAt: true,
+    try {
+        const members = await db.orgMember.findMany({
+            where: { orgId: session.orgId },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        createdAt: true,
+                    },
                 },
             },
-        },
-        orderBy: { user: { createdAt: 'asc' } },
-    })
+            orderBy: { user: { createdAt: 'asc' } },
+        })
 
-    return NextResponse.json({ data: members })
+        return NextResponse.json({ data: members })
+    } catch (error) {
+        console.error('Failed to fetch team members:', error)
+        return NextResponse.json(
+            { error: 'Failed to fetch team members' },
+            { status: 500 }
+        )
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -46,7 +54,13 @@ export async function POST(req: Request) {
         )
     }
 
-    const body = await req.json()
+    let body: unknown
+    try {
+        body = await req.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+
     const parsed = inviteTeamMemberSchema.safeParse(body)
 
     if (!parsed.success) {
@@ -58,50 +72,58 @@ export async function POST(req: Request) {
 
     const { email, role } = parsed.data
 
-    // Find user by email
-    const user = await db.user.findUnique({
-        where: { email },
-        select: { id: true },
-    })
+    try {
+        // Find user by email
+        const user = await db.user.findUnique({
+            where: { email },
+            select: { id: true },
+        })
 
-    if (!user) {
-        return NextResponse.json(
-            { error: 'User not found. They must register first.' },
-            { status: 404 }
-        )
-    }
+        if (!user) {
+            return NextResponse.json(
+                { error: 'User not found. They must register first.' },
+                { status: 404 }
+            )
+        }
 
-    // Check if already a member
-    const existing = await db.orgMember.findUnique({
-        where: { orgId_userId: { orgId: session.orgId, userId: user.id } },
-    })
+        // Check if already a member
+        const existing = await db.orgMember.findUnique({
+            where: { orgId_userId: { orgId: session.orgId, userId: user.id } },
+        })
 
-    if (existing) {
-        return NextResponse.json(
-            { error: 'This user is already a member of your organization' },
-            { status: 409 }
-        )
-    }
+        if (existing) {
+            return NextResponse.json(
+                { error: 'This user is already a member of your organization' },
+                { status: 409 }
+            )
+        }
 
-    const member = await db.orgMember.create({
-        data: {
-            orgId: session.orgId,
-            userId: user.id,
-            role,
-        },
-        include: {
-            user: {
-                select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    createdAt: true,
+        const member = await db.orgMember.create({
+            data: {
+                orgId: session.orgId,
+                userId: user.id,
+                role,
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        createdAt: true,
+                    },
                 },
             },
-        },
-    })
+        })
 
-    return NextResponse.json({ data: member }, { status: 201 })
+        return NextResponse.json({ data: member }, { status: 201 })
+    } catch (error) {
+        console.error('Failed to add team member:', error)
+        return NextResponse.json(
+            { error: 'Failed to add team member' },
+            { status: 500 }
+        )
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -120,7 +142,13 @@ export async function DELETE(req: Request) {
         )
     }
 
-    const body = await req.json()
+    let body: unknown
+    try {
+        body = await req.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+
     const parsed = removeTeamMemberSchema.safeParse(body)
 
     if (!parsed.success) {
@@ -132,38 +160,46 @@ export async function DELETE(req: Request) {
 
     const { memberId } = parsed.data
 
-    // Fetch the member to check constraints
-    const member = await db.orgMember.findUnique({
-        where: { id: memberId },
-        select: { userId: true, role: true, orgId: true },
-    })
-
-    if (!member || member.orgId !== session.orgId) {
-        return NextResponse.json({ error: 'Member not found' }, { status: 404 })
-    }
-
-    // Cannot remove yourself
-    if (member.userId === session.user.id) {
-        return NextResponse.json(
-            { error: 'You cannot remove yourself from the organization' },
-            { status: 400 }
-        )
-    }
-
-    // Cannot remove the last OWNER
-    if (member.role === 'OWNER') {
-        const ownerCount = await db.orgMember.count({
-            where: { orgId: session.orgId, role: 'OWNER' },
+    try {
+        // Fetch the member to check constraints
+        const member = await db.orgMember.findUnique({
+            where: { id: memberId },
+            select: { userId: true, role: true, orgId: true },
         })
-        if (ownerCount <= 1) {
+
+        if (!member || member.orgId !== session.orgId) {
+            return NextResponse.json({ error: 'Member not found' }, { status: 404 })
+        }
+
+        // Cannot remove yourself
+        if (member.userId === session.user.id) {
             return NextResponse.json(
-                { error: 'Cannot remove the last owner. Transfer ownership first.' },
+                { error: 'You cannot remove yourself from the organization' },
                 { status: 400 }
             )
         }
+
+        // Cannot remove the last OWNER
+        if (member.role === 'OWNER') {
+            const ownerCount = await db.orgMember.count({
+                where: { orgId: session.orgId, role: 'OWNER' },
+            })
+            if (ownerCount <= 1) {
+                return NextResponse.json(
+                    { error: 'Cannot remove the last owner. Transfer ownership first.' },
+                    { status: 400 }
+                )
+            }
+        }
+
+        await db.orgMember.delete({ where: { id: memberId } })
+
+        return NextResponse.json({ data: { success: true } })
+    } catch (error) {
+        console.error('Failed to remove team member:', error)
+        return NextResponse.json(
+            { error: 'Failed to remove team member' },
+            { status: 500 }
+        )
     }
-
-    await db.orgMember.delete({ where: { id: memberId } })
-
-    return NextResponse.json({ data: { success: true } })
 }

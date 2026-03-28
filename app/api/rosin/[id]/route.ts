@@ -2,6 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 
+// Optional string fields on RosinBatch — convert empty strings to null
+const OPTIONAL_STRING_FIELDS = [
+    'pressId', 'productName', 'consistency', 'rosinChipUid',
+    'rosinProductUid', 'metrcBatchNumber', 'companyProcessedFor',
+    'rosinProcessedBy', 'decarbProcessedBy', 'qcVerifiedBy', 'cleaningLogRef',
+] as const
+
+function sanitizeOptionalStrings(data: Record<string, unknown>) {
+    for (const field of OPTIONAL_STRING_FIELDS) {
+        if (field in data && typeof data[field] === 'string') {
+            data[field] = (data[field] as string) || null
+        }
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // GET /api/rosin/[id] — Fetch single rosin batch
 // ═══════════════════════════════════════════════════════════════════════════
@@ -15,29 +30,34 @@ export async function GET(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const batch = await db.rosinBatch.findFirst({
-        where: { id: id, orgId: session.orgId },
-        include: {
-            sourceHashBatch: {
-                select: {
-                    id: true,
-                    strain: true,
-                    batchNumber: true,
-                    totalYieldG: true,
-                    yield120u: true,
-                    yield90u: true,
-                    yield73u: true,
-                    yield45u: true,
+    try {
+        const batch = await db.rosinBatch.findFirst({
+            where: { id: id, orgId: session.orgId },
+            include: {
+                sourceHashBatch: {
+                    select: {
+                        id: true,
+                        strain: true,
+                        batchNumber: true,
+                        totalYieldG: true,
+                        yield120u: true,
+                        yield90u: true,
+                        yield73u: true,
+                        yield45u: true,
+                    },
                 },
             },
-        },
-    })
+        })
 
-    if (!batch) {
-        return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
+        if (!batch) {
+            return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
+        }
+
+        return NextResponse.json({ data: batch })
+    } catch (err) {
+        console.error('[GET /api/rosin/[id]] DB error:', err)
+        return NextResponse.json({ error: 'Failed to fetch rosin batch' }, { status: 500 })
     }
-
-    return NextResponse.json({ data: batch })
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -54,14 +74,29 @@ export async function PATCH(
     }
 
     // Verify batch exists and belongs to org
-    const existing = await db.rosinBatch.findFirst({
-        where: { id: id, orgId: session.orgId },
-    })
+    let existing
+    try {
+        existing = await db.rosinBatch.findFirst({
+            where: { id: id, orgId: session.orgId },
+        })
+    } catch (err) {
+        console.error('[PATCH /api/rosin/[id]] DB error (ownership check):', err)
+        return NextResponse.json({ error: 'Failed to verify rosin batch ownership' }, { status: 500 })
+    }
+
     if (!existing) {
         return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
     }
 
-    const body = await req.json()
+    let body
+    try {
+        body = await req.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+
+    // Convert empty strings to null for optional string fields
+    sanitizeOptionalStrings(body)
 
     // Recalculate yield if weight changed
     if (body.rosinYieldWeightG !== undefined) {
@@ -83,17 +118,22 @@ export async function PATCH(
     // Convert date strings
     if (body.processDate) body.processDate = new Date(body.processDate)
 
-    const batch = await db.rosinBatch.update({
-        where: { id: id },
-        data: body,
-        include: {
-            sourceHashBatch: {
-                select: { strain: true, batchNumber: true },
+    try {
+        const batch = await db.rosinBatch.update({
+            where: { id: id },
+            data: body,
+            include: {
+                sourceHashBatch: {
+                    select: { strain: true, batchNumber: true },
+                },
             },
-        },
-    })
+        })
 
-    return NextResponse.json({ data: batch })
+        return NextResponse.json({ data: batch })
+    } catch (err) {
+        console.error('[PATCH /api/rosin/[id]] DB error (update):', err)
+        return NextResponse.json({ error: 'Failed to update rosin batch' }, { status: 500 })
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -109,17 +149,29 @@ export async function DELETE(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const existing = await db.rosinBatch.findFirst({
-        where: { id: id, orgId: session.orgId },
-    })
+    let existing
+    try {
+        existing = await db.rosinBatch.findFirst({
+            where: { id: id, orgId: session.orgId },
+        })
+    } catch (err) {
+        console.error('[DELETE /api/rosin/[id]] DB error (ownership check):', err)
+        return NextResponse.json({ error: 'Failed to verify rosin batch ownership' }, { status: 500 })
+    }
+
     if (!existing) {
         return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
     }
 
-    await db.rosinBatch.update({
-        where: { id: id },
-        data: { status: 'ARCHIVED' },
-    })
+    try {
+        await db.rosinBatch.update({
+            where: { id: id },
+            data: { status: 'ARCHIVED' },
+        })
 
-    return NextResponse.json({ success: true })
+        return NextResponse.json({ success: true })
+    } catch (err) {
+        console.error('[DELETE /api/rosin/[id]] DB error (archive):', err)
+        return NextResponse.json({ error: 'Failed to archive rosin batch' }, { status: 500 })
+    }
 }

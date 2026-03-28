@@ -23,17 +23,22 @@ export async function GET(req: NextRequest) {
     if (category) where.category = category
     if (equipmentId) where.equipmentId = equipmentId
 
-    const [logs, total] = await Promise.all([
-        db.haEquipmentMaintenanceLog.findMany({
-            where,
-            orderBy: { date: 'desc' },
-            take: limit,
-            skip: offset,
-        }),
-        db.haEquipmentMaintenanceLog.count({ where }),
-    ])
+    try {
+        const [logs, total] = await Promise.all([
+            db.haEquipmentMaintenanceLog.findMany({
+                where,
+                orderBy: { date: 'desc' },
+                take: limit,
+                skip: offset,
+            }),
+            db.haEquipmentMaintenanceLog.count({ where }),
+        ])
 
-    return NextResponse.json({ data: logs, total, limit, offset })
+        return NextResponse.json({ data: logs, total, limit, offset })
+    } catch (err) {
+        console.error('Failed to fetch maintenance logs:', err)
+        return NextResponse.json({ error: 'Failed to fetch maintenance logs' }, { status: 500 })
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -45,7 +50,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await req.json()
+    let body: unknown
+    try {
+        body = await req.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+
     const parsed = createMaintenanceLogSchema.safeParse(body)
 
     if (!parsed.success) {
@@ -57,23 +68,28 @@ export async function POST(req: NextRequest) {
 
     const data = parsed.data
 
-    const log = await db.haEquipmentMaintenanceLog.create({
-        data: {
-            orgId: session.orgId,
-            category: data.category,
-            equipmentId: data.equipmentId,
-            equipmentType: data.equipmentType,
-            equipmentName: data.equipmentName,
-            date: new Date(data.date),
-            description: data.description,
-            actionsTaken: data.actionsTaken,
-            partsReplaced: data.partsReplaced,
-            performedBy: data.performedBy,
-            verifiedBy: data.verifiedBy,
-            nextDueDate: data.nextDueDate ? new Date(data.nextDueDate) : undefined,
-            notes: data.notes,
-        },
-    })
+    try {
+        const log = await db.haEquipmentMaintenanceLog.create({
+            data: {
+                orgId: session.orgId,
+                category: data.category,
+                equipmentId: data.equipmentId,
+                equipmentType: data.equipmentType,
+                equipmentName: data.equipmentName,
+                date: new Date(data.date),
+                description: data.description,
+                actionsTaken: data.actionsTaken || null,
+                partsReplaced: data.partsReplaced || null,
+                performedBy: data.performedBy,
+                verifiedBy: data.verifiedBy || null,
+                nextDueDate: data.nextDueDate ? new Date(data.nextDueDate) : undefined,
+                notes: data.notes || null,
+            },
+        })
 
-    return NextResponse.json({ data: log }, { status: 201 })
+        return NextResponse.json({ data: log }, { status: 201 })
+    } catch (err) {
+        console.error('Failed to create maintenance log:', err)
+        return NextResponse.json({ error: 'Failed to create maintenance log' }, { status: 500 })
+    }
 }

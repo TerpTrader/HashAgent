@@ -12,20 +12,25 @@ export async function GET() {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const dryers = await db.freezeDryer.findMany({
-        where: { orgId: session.orgId },
-        orderBy: { name: 'asc' },
-        include: {
-            _count: {
-                select: {
-                    batches: true,
-                    alerts: true,
+    try {
+        const dryers = await db.freezeDryer.findMany({
+            where: { orgId: session.orgId },
+            orderBy: { name: 'asc' },
+            include: {
+                _count: {
+                    select: {
+                        batches: true,
+                        alerts: true,
+                    },
                 },
             },
-        },
-    })
+        })
 
-    return NextResponse.json({ data: dryers })
+        return NextResponse.json({ data: dryers })
+    } catch (err) {
+        console.error('Failed to fetch freeze dryers:', err)
+        return NextResponse.json({ error: 'Failed to fetch freeze dryers' }, { status: 500 })
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -48,18 +53,34 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await req.json()
+    let body: unknown
+    try {
+        body = await req.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+
     const parsed = createSchema.safeParse(body)
     if (!parsed.success) {
         return NextResponse.json({ error: 'Validation failed', details: parsed.error.flatten() }, { status: 400 })
     }
 
-    const dryer = await db.freezeDryer.create({
-        data: {
-            orgId: session.orgId,
-            ...parsed.data,
-        },
-    })
+    try {
+        const dryer = await db.freezeDryer.create({
+            data: {
+                orgId: session.orgId,
+                name: parsed.data.name,
+                callsign: parsed.data.callsign || null,
+                model: parsed.data.model || null,
+                serial: parsed.data.serialNumber || null,
+                pumpModel: parsed.data.pumpModel || null,
+                connectionType: parsed.data.connectionType,
+            },
+        })
 
-    return NextResponse.json({ data: dryer }, { status: 201 })
+        return NextResponse.json({ data: dryer }, { status: 201 })
+    } catch (err) {
+        console.error('Failed to create freeze dryer:', err)
+        return NextResponse.json({ error: 'Failed to create freeze dryer' }, { status: 500 })
+    }
 }

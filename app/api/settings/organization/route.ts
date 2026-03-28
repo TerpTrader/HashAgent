@@ -19,7 +19,13 @@ export async function PATCH(req: NextRequest) {
         )
     }
 
-    const body = await req.json()
+    let body: unknown
+    try {
+        body = await req.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+
     const parsed = updateOrganizationSchema.safeParse(body)
 
     if (!parsed.success) {
@@ -29,11 +35,19 @@ export async function PATCH(req: NextRequest) {
         )
     }
 
-    const org = await db.organization.update({
-        where: { id: session.orgId },
-        data: { name: parsed.data.name },
-        select: { name: true },
-    })
+    try {
+        const org = await db.organization.update({
+            where: { id: session.orgId },
+            data: { name: parsed.data.name },
+            select: { name: true },
+        })
 
-    return NextResponse.json({ data: org })
+        return NextResponse.json({ data: org })
+    } catch (error) {
+        console.error('Failed to update organization:', error)
+        return NextResponse.json(
+            { error: 'Failed to update organization' },
+            { status: 500 }
+        )
+    }
 }

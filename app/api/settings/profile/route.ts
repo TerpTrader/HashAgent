@@ -12,7 +12,13 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await req.json()
+    let body: unknown
+    try {
+        body = await req.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+
     const parsed = updateProfileSchema.safeParse(body)
 
     if (!parsed.success) {
@@ -22,11 +28,19 @@ export async function PATCH(req: NextRequest) {
         )
     }
 
-    const user = await db.user.update({
-        where: { id: session.user.id },
-        data: { name: parsed.data.name },
-        select: { name: true },
-    })
+    try {
+        const user = await db.user.update({
+            where: { id: session.user.id },
+            data: { name: parsed.data.name },
+            select: { name: true },
+        })
 
-    return NextResponse.json({ data: user })
+        return NextResponse.json({ data: user })
+    } catch (error) {
+        console.error('Failed to update profile:', error)
+        return NextResponse.json(
+            { error: 'Failed to update profile' },
+            { status: 500 }
+        )
+    }
 }

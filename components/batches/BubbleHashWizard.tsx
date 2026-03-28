@@ -181,18 +181,24 @@ export function BubbleHashWizard() {
                 body: JSON.stringify(payload),
             })
 
-            if (!res.ok) {
-                const err = await res.json()
-                throw new Error(err.error ?? 'Failed to create batch')
+            // Parse JSON once — handles both success and error responses
+            let json: Record<string, unknown>
+            try {
+                json = await res.json()
+            } catch {
+                throw new Error('Server error — please try again')
             }
 
-            const { data } = await res.json()
+            if (!res.ok) {
+                throw new Error((json.error as string) ?? 'Failed to create batch')
+            }
+
             toast({
                 title: 'Batch created',
                 description: `${step0Form.getValues().strain} batch logged successfully.`,
                 variant: 'success',
             })
-            router.push(`/batches/${data.id}`)
+            router.push(`/batches/${(json.data as { id: string }).id}`)
         } catch (err) {
             setSubmitError(err instanceof Error ? err.message : 'An unexpected error occurred')
         } finally {

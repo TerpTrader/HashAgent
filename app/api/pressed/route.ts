@@ -70,7 +70,13 @@ export async function POST(req: NextRequest) {
     const session = await auth()
     if (!session?.orgId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const body = await req.json()
+    let body: unknown
+    try {
+        body = await req.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+
     const parsed = createSchema.safeParse(body)
     if (!parsed.success) {
         return NextResponse.json({ error: 'Validation failed', details: parsed.error.flatten() }, { status: 400 })
@@ -82,25 +88,31 @@ export async function POST(req: NextRequest) {
         ? (processingLossG / data.inputWeightG) * 100
         : null
 
-    const batch = await db.pressedBatch.create({
-        data: {
-            orgId: session.orgId,
-            sourceHashBatchId: data.sourceHashBatchId,
-            strain: data.strain,
-            batchNumber: data.batchNumber,
-            pressDate: new Date(data.pressDate),
-            micronsUsed: data.micronsUsed,
-            inputWeightG: data.inputWeightG,
-            finalWeightG: data.finalWeightG,
-            processingLossG,
-            processingLossPct,
-            status: data.finalWeightG != null ? 'COMPLETE' : 'PRESSING',
-            notes: data.notes,
-            metrcUid: data.metrcUid,
-            processedBy: data.processedBy,
-            verifiedBy: data.verifiedBy,
-        },
-    })
+    try {
+        const batch = await db.pressedBatch.create({
+            data: {
+                orgId: session.orgId,
+                sourceHashBatchId: data.sourceHashBatchId,
+                strain: data.strain || null,
+                batchNumber: data.batchNumber,
+                pressDate: new Date(data.pressDate),
+                micronsUsed: data.micronsUsed || null,
+                inputWeightG: data.inputWeightG,
+                finalWeightG: data.finalWeightG,
+                processingLossG,
+                processingLossPct,
+                status: data.finalWeightG != null ? 'COMPLETE' : 'PRESSING',
+                notes: data.notes || null,
+                metrcUid: data.metrcUid || null,
+                processedBy: data.processedBy || null,
+                verifiedBy: data.verifiedBy || null,
+            },
+        })
 
-    return NextResponse.json({ data: batch }, { status: 201 })
+        return NextResponse.json({ data: batch }, { status: 201 })
+    } catch (err) {
+        console.error('[POST /api/pressed] DB error:', err)
+        const message = err instanceof Error ? err.message : 'Database error'
+        return NextResponse.json({ error: `Failed to create pressed hash batch: ${message}` }, { status: 500 })
+    }
 }

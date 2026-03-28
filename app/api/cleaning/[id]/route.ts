@@ -15,18 +15,23 @@ export async function GET(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const log = await db.haCleaningLog.findFirst({
-        where: { id, orgId: session.orgId },
-        include: {
-            entries: { orderBy: { dayOfWeek: 'asc' } },
-        },
-    })
+    try {
+        const log = await db.haCleaningLog.findFirst({
+            where: { id, orgId: session.orgId },
+            include: {
+                entries: { orderBy: { dayOfWeek: 'asc' } },
+            },
+        })
 
-    if (!log) {
-        return NextResponse.json({ error: 'Cleaning log not found' }, { status: 404 })
+        if (!log) {
+            return NextResponse.json({ error: 'Cleaning log not found' }, { status: 404 })
+        }
+
+        return NextResponse.json({ data: log })
+    } catch (err) {
+        console.error('Failed to fetch cleaning log:', err)
+        return NextResponse.json({ error: 'Failed to fetch cleaning log' }, { status: 500 })
     }
-
-    return NextResponse.json({ data: log })
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -42,63 +47,73 @@ export async function PATCH(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify ownership
-    const existing = await db.haCleaningLog.findFirst({
-        where: { id, orgId: session.orgId },
-        select: { id: true },
-    })
-
-    if (!existing) {
-        return NextResponse.json({ error: 'Cleaning log not found' }, { status: 404 })
+    let body: Record<string, unknown>
+    try {
+        body = await req.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
     }
 
-    const body = await req.json()
-
-    // Strip fields that should not be directly updated
-    const { id: _id, orgId: _orgId, createdAt: _ca, updatedAt: _ua, entries, ...updateData } = body
-
-    // Convert weekOf date string to Date if present
-    if (typeof updateData.weekOf === 'string') {
-        updateData.weekOf = new Date(updateData.weekOf)
-    }
-
-    // If entries are provided, replace them (delete existing + create new)
-    if (Array.isArray(entries)) {
-        await db.haCleaningEntry.deleteMany({
-            where: { cleaningLogId: id },
+    try {
+        // Verify ownership
+        const existing = await db.haCleaningLog.findFirst({
+            where: { id, orgId: session.orgId },
+            select: { id: true },
         })
 
-        await db.haCleaningEntry.createMany({
-            data: entries.map((e: {
-                dayOfWeek: number
-                date: string
-                equipmentName: string
-                cleaned?: boolean
-                cleanedBy?: string
-                verifiedBy?: string
-                notes?: string
-            }) => ({
-                cleaningLogId: id,
-                dayOfWeek: e.dayOfWeek,
-                date: new Date(e.date),
-                equipmentName: e.equipmentName,
-                cleaned: e.cleaned ?? false,
-                cleanedBy: e.cleanedBy,
-                verifiedBy: e.verifiedBy,
-                notes: e.notes,
-            })),
+        if (!existing) {
+            return NextResponse.json({ error: 'Cleaning log not found' }, { status: 404 })
+        }
+
+        // Strip fields that should not be directly updated
+        const { id: _id, orgId: _orgId, createdAt: _ca, updatedAt: _ua, entries, ...updateData } = body
+
+        // Convert weekOf date string to Date if present
+        if (typeof updateData.weekOf === 'string') {
+            updateData.weekOf = new Date(updateData.weekOf)
+        }
+
+        // If entries are provided, replace them (delete existing + create new)
+        if (Array.isArray(entries)) {
+            await db.haCleaningEntry.deleteMany({
+                where: { cleaningLogId: id },
+            })
+
+            await db.haCleaningEntry.createMany({
+                data: entries.map((e: {
+                    dayOfWeek: number
+                    date: string
+                    equipmentName: string
+                    cleaned?: boolean
+                    cleanedBy?: string
+                    verifiedBy?: string
+                    notes?: string
+                }) => ({
+                    cleaningLogId: id,
+                    dayOfWeek: e.dayOfWeek,
+                    date: new Date(e.date),
+                    equipmentName: e.equipmentName,
+                    cleaned: e.cleaned ?? false,
+                    cleanedBy: e.cleanedBy || null,
+                    verifiedBy: e.verifiedBy || null,
+                    notes: e.notes || null,
+                })),
+            })
+        }
+
+        const log = await db.haCleaningLog.update({
+            where: { id },
+            data: updateData,
+            include: {
+                entries: { orderBy: { dayOfWeek: 'asc' } },
+            },
         })
+
+        return NextResponse.json({ data: log })
+    } catch (err) {
+        console.error('Failed to update cleaning log:', err)
+        return NextResponse.json({ error: 'Failed to update cleaning log' }, { status: 500 })
     }
-
-    const log = await db.haCleaningLog.update({
-        where: { id },
-        data: updateData,
-        include: {
-            entries: { orderBy: { dayOfWeek: 'asc' } },
-        },
-    })
-
-    return NextResponse.json({ data: log })
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -114,20 +129,25 @@ export async function DELETE(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify ownership
-    const existing = await db.haCleaningLog.findFirst({
-        where: { id, orgId: session.orgId },
-        select: { id: true },
-    })
+    try {
+        // Verify ownership
+        const existing = await db.haCleaningLog.findFirst({
+            where: { id, orgId: session.orgId },
+            select: { id: true },
+        })
 
-    if (!existing) {
-        return NextResponse.json({ error: 'Cleaning log not found' }, { status: 404 })
+        if (!existing) {
+            return NextResponse.json({ error: 'Cleaning log not found' }, { status: 404 })
+        }
+
+        // Entries cascade-delete via Prisma onDelete: Cascade on the relation
+        await db.haCleaningLog.delete({
+            where: { id },
+        })
+
+        return NextResponse.json({ data: { deleted: true } })
+    } catch (err) {
+        console.error('Failed to delete cleaning log:', err)
+        return NextResponse.json({ error: 'Failed to delete cleaning log' }, { status: 500 })
     }
-
-    // Entries cascade-delete via Prisma onDelete: Cascade on the relation
-    await db.haCleaningLog.delete({
-        where: { id },
-    })
-
-    return NextResponse.json({ data: { deleted: true } })
 }

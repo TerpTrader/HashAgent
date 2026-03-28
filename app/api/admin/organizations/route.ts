@@ -32,36 +32,44 @@ export async function GET(req: NextRequest) {
 
     const skip = (page - 1) * limit
 
-    const [organizations, total] = await Promise.all([
-        db.organization.findMany({
-            where,
-            orderBy: { [validSort]: sortDir },
-            skip,
-            take: limit,
-            select: {
-                id: true,
-                name: true,
-                plan: true,
-                createdAt: true,
-                _count: {
-                    select: {
-                        members: true,
-                        hashBatches: true,
-                        rosinBatches: true,
-                        pressedBatches: true,
+    try {
+        const [organizations, total] = await Promise.all([
+            db.organization.findMany({
+                where,
+                orderBy: { [validSort]: sortDir },
+                skip,
+                take: limit,
+                select: {
+                    id: true,
+                    name: true,
+                    plan: true,
+                    createdAt: true,
+                    _count: {
+                        select: {
+                            members: true,
+                            hashBatches: true,
+                            rosinBatches: true,
+                            pressedBatches: true,
+                        },
                     },
                 },
-            },
-        }),
-        db.organization.count({ where }),
-    ])
+            }),
+            db.organization.count({ where }),
+        ])
 
-    return NextResponse.json({
-        data: {
-            organizations,
-            total,
-            page,
-            limit,
-        },
-    })
+        return NextResponse.json({
+            data: {
+                organizations,
+                total,
+                page,
+                limit,
+            },
+        })
+    } catch (error) {
+        console.error('Failed to fetch organizations:', error)
+        return NextResponse.json(
+            { error: 'Failed to fetch organizations' },
+            { status: 500 }
+        )
+    }
 }

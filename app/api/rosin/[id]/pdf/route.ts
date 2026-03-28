@@ -13,27 +13,38 @@ export async function GET(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const batch = await db.rosinBatch.findFirst({
-        where: { id, orgId: session.orgId },
-        include: {
-            sourceHashBatch: {
-                select: { batchNumber: true, strain: true },
+    let batch
+    try {
+        batch = await db.rosinBatch.findFirst({
+            where: { id, orgId: session.orgId },
+            include: {
+                sourceHashBatch: {
+                    select: { batchNumber: true, strain: true },
+                },
             },
-        },
-    })
+        })
+    } catch (err) {
+        console.error('[GET /api/rosin/[id]/pdf] DB error:', err)
+        return NextResponse.json({ error: 'Failed to fetch rosin batch for PDF' }, { status: 500 })
+    }
 
     if (!batch) {
         return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
     }
 
-    const buffer = await generateRosinBatchPDF(batch as Parameters<typeof generateRosinBatchPDF>[0])
-    const filename = `${batch.batchNumber}-${batch.strain.replace(/\s+/g, '_')}-rosin.pdf`
+    try {
+        const buffer = await generateRosinBatchPDF(batch as Parameters<typeof generateRosinBatchPDF>[0])
+        const filename = `${batch.batchNumber}-${batch.strain.replace(/\s+/g, '_')}-rosin.pdf`
 
-    return new NextResponse(new Uint8Array(buffer), {
-        status: 200,
-        headers: {
-            'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="${filename}"`,
-        },
-    })
+        return new NextResponse(new Uint8Array(buffer), {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': `attachment; filename="${filename}"`,
+            },
+        })
+    } catch (err) {
+        console.error('[GET /api/rosin/[id]/pdf] PDF generation error:', err)
+        return NextResponse.json({ error: 'Failed to generate rosin PDF' }, { status: 500 })
+    }
 }

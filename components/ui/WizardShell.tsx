@@ -1,7 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
-import { ChevronLeft, ChevronRight, Check, Loader2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Loader2, X } from 'lucide-react'
 
 export interface WizardStep {
     label: string
@@ -16,6 +17,8 @@ interface WizardShellProps {
     onSubmit: () => void
     isSubmitting: boolean
     title: string
+    /** URL to navigate to when user cancels the wizard */
+    cancelHref?: string
     children: React.ReactNode
 }
 
@@ -27,6 +30,7 @@ export function WizardShell({
     onSubmit,
     isSubmitting,
     title,
+    cancelHref,
     children,
 }: WizardShellProps) {
     const isFirstStep = currentStep === 0
@@ -35,11 +39,22 @@ export function WizardShell({
     return (
         <div className="mx-auto max-w-3xl animate-fade-in">
             {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-2xl font-semibold text-white">{title}</h1>
-                <p className="mt-1 text-sm text-muted">
-                    Step {currentStep + 1} of {steps.length} &mdash; {steps[currentStep].label}
-                </p>
+            <div className="mb-8 flex items-start justify-between">
+                <div>
+                    <h1 className="text-2xl font-semibold text-white">{title}</h1>
+                    <p className="mt-1 text-sm text-muted">
+                        Step {currentStep + 1} of {steps.length} &mdash; {steps[currentStep].label}
+                    </p>
+                </div>
+                {cancelHref && (
+                    <Link
+                        href={cancelHref}
+                        className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-sm text-muted transition-colors hover:border-white/20 hover:text-white"
+                    >
+                        <X className="h-4 w-4" />
+                        Cancel
+                    </Link>
+                )}
             </div>
 
             {/* Step Indicator */}

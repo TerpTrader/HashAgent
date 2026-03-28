@@ -181,6 +181,7 @@ export function RosinWizard() {
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}
                 title="New Rosin Press"
+                cancelHref="/rosin"
             >
                 {currentStep === 0 && <SourceSelectionStep form={sourceForm} />}
                 {currentStep === 1 && <PressSetupStep form={pressForm} />}

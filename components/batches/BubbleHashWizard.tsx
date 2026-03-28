@@ -257,6 +257,7 @@ export function BubbleHashWizard() {
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}
                 title="New Bubble Hash Batch"
+                cancelHref="/batches"
             >
                 {renderStep()}
             </WizardShell>
